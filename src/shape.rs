@@ -22,6 +22,7 @@ impl Intersection {
 
 pub enum Shape {
     Plane(Vector3, Vector3, Material),
+    Sphere(Vector3, f32, Material),
 }
 
 fn intersect_plane(origin: &Vector3, normal: &Vector3, ray: &Ray) -> Option<Intersection> {
@@ -46,16 +47,43 @@ fn intersect_plane(origin: &Vector3, normal: &Vector3, ray: &Ray) -> Option<Inte
     return Some(Intersection::new(t, hit_point, hit_normal));
 }
 
+fn intersect_sphere(origin: &Vector3, radius: f32, ray: &Ray) -> Option<Intersection> {
+    let Ray { origin: ray_origin, direction: ray_direction } = ray;
+    let v = origin - ray_origin;
+
+    let tca = v.inner_product(&ray_direction);
+    if tca < 0.0 {
+        return None;
+    }
+
+    let d2 = v.length_squared() - tca * tca;
+    if d2 > radius * radius {
+        return None;
+    }
+
+    let thc = (radius * radius - d2).sqrt();
+    let t = if tca - thc < 0.0 {
+        tca - thc
+    } else {
+        tca + thc
+    };
+    let hit_point = ray_origin + ray_direction * t;
+    let normal = (hit_point - origin).normalized();
+    return Some(Intersection::new(t, hit_point, normal));
+}
+
 impl Shape {
     pub fn intersect(&self, ray: &Ray) -> Option<Intersection> {
         match self {
             Shape::Plane(origin, normal, _) => intersect_plane(origin, normal, ray),
+            Shape::Sphere(origin, radius, _) => intersect_sphere(origin, *radius, ray),
         }
     }
 
     pub fn material(&self) -> Material {
         match self {
-            Shape::Plane(_, _, material) => *material
+            Shape::Plane(_, _, material) => *material,
+            Shape::Sphere(_, _, material) => *material,
         }
     }
 }

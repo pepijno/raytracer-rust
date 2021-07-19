@@ -11,7 +11,7 @@ use rust_raytracer::shape::Shape;
 fn main() {
     let mut file = std::fs::File::create("image.ppm").expect("create failed");
 
-    const SIZE: i32 = 100;
+    const SIZE: i32 = 1000;
     const ASPECT_RATIO: f32 = 1.66;
     const HEIGHT: u32 = (2 * SIZE) as u32;
     const WIDTH: u32 = (2.0 * ASPECT_RATIO * (SIZE as f32)) as u32;
@@ -32,6 +32,7 @@ fn main() {
 
     let objects: Vec<Shape> = vec![
         Shape::Plane(Vector3::new(0.0, -1.0, 0.0), Vector3::new(0.0, 1.0, 0.0), ivory),
+        Shape::Sphere(Vector3::new(-1.0, 0.0, -2.0), 1.0, ivory),
     ];
 
     let lights = vec![
