@@ -1,3 +1,5 @@
+use crate::material::Material;
+use crate::material::Color;
 use crate::ray::Ray;
 use crate::vector3::Vector3;
 
@@ -19,7 +21,7 @@ impl Intersection {
 }
 
 pub enum Shape {
-    Plane(Vector3, Vector3),
+    Plane(Vector3, Vector3, Material),
 }
 
 fn intersect_plane(origin: &Vector3, normal: &Vector3, ray: &Ray) -> Option<Intersection> {
@@ -47,7 +49,13 @@ fn intersect_plane(origin: &Vector3, normal: &Vector3, ray: &Ray) -> Option<Inte
 impl Shape {
     pub fn intersect(&self, ray: &Ray) -> Option<Intersection> {
         match self {
-            Shape::Plane(origin, normal) => intersect_plane(origin, normal, ray),
+            Shape::Plane(origin, normal, _) => intersect_plane(origin, normal, ray),
+        }
+    }
+
+    pub fn material(&self) -> Material {
+        match self {
+            Shape::Plane(_, _, material) => *material
         }
     }
 }
