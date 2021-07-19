@@ -7,6 +7,7 @@ use crate::vector3::Vector3;
 
 const MAX_DEPTH: u8 = 5;
 
+#[derive(Clone)]
 pub struct Scene {
     objects: Vec<Shape>,
     lights: Vec<Vector3>,

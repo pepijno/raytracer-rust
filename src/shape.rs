@@ -20,6 +20,7 @@ impl Intersection {
     }
 }
 
+#[derive(Clone)]
 pub enum Shape {
     Plane(Vector3, Vector3, Material),
     Sphere(Vector3, f32, Material),
