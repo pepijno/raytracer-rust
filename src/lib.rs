@@ -1,7 +1,6 @@
-mod vector3;
-mod ray;
-mod camera;
-mod intersect;
-mod scene;
-mod material;
-mod intersect;
+pub mod vector3;
+pub mod ray;
+pub mod camera;
+pub mod scene;
+pub mod material;
+pub mod intersect;

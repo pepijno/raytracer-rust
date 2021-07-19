@@ -13,6 +13,13 @@ pub struct Scene {
 }
 
 impl Scene {
+    pub fn new(objects: Vec<Shape>, lights: Vec<Vector3>) -> Self {
+        Self {
+            objects: objects,
+            lights: lights,
+        }
+    }
+
     pub fn trace_ray(&self, ray: &Ray, depth: u8) -> Color {
         if depth >= MAX_DEPTH {
             return Color::black();
