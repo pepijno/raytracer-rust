@@ -3,4 +3,4 @@ pub mod ray;
 pub mod camera;
 pub mod scene;
 pub mod material;
-pub mod intersect;
+pub mod shape;

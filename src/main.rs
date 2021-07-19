@@ -6,12 +6,12 @@ use rust_raytracer::vector3::Vector3;
 use rust_raytracer::material::Color;
 use rust_raytracer::camera::Camera;
 use rust_raytracer::scene::Scene;
-use rust_raytracer::intersect::Shape;
+use rust_raytracer::shape::Shape;
 
 fn main() {
     let mut file = std::fs::File::create("image.ppm").expect("create failed");
 
-    const SIZE: i32 = 1000;
+    const SIZE: i32 = 100;
     const ASPECT_RATIO: f32 = 1.66;
     const HEIGHT: u32 = (2 * SIZE) as u32;
     const WIDTH: u32 = (2.0 * ASPECT_RATIO * (SIZE as f32)) as u32;

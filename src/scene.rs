@@ -1,9 +1,9 @@
 use crate::material::Color;
 use crate::material::Material;
 use crate::ray::Ray;
-use crate::intersect::Shape;
+use crate::shape::Shape;
+use crate::shape::Intersection;
 use crate::vector3::Vector3;
-use crate::intersect::intersect_any;
 
 const MAX_DEPTH: u8 = 5;
 
@@ -25,7 +25,7 @@ impl Scene {
             return Color::black();
         }
 
-        let intersection = intersect_any(&self.objects, ray);
+        let intersection = self.intersect_any(ray);
 
         match intersection {
             Some((object, int)) => {
@@ -40,7 +40,7 @@ impl Scene {
                 let mut specular_light_intensity = 0.0;
                 for light in &self.lights {
                     let light_dir = (light - int.hit_point).normalized();
-                    let i = intersect_any(&self.objects, &Ray::new(int.hit_point + light_dir * 0.0001, light_dir));
+                    let i = self.intersect_any(&Ray::new(int.hit_point + light_dir * 0.0001, light_dir));
                     if let Some((_, ix)) = i {
                         if (ix.hit_point - int.hit_point).length_squared() < (light - int.hit_point).length_squared() {
                             continue;
@@ -52,6 +52,26 @@ impl Scene {
                 return diffuse_color * diffuse_light_intensity * albedo[0] + Color::singular(1.0) * specular_light_intensity * albedo[1] + reflect_color * albedo[2] + refract_color * albedo[3];
             },
             None => Color::black(),
+        }
+    }
+
+    fn intersect_any(&self, ray: &Ray) -> Option<(&Shape, Intersection)> {
+        let mut min_t: f32 = std::f32::MAX;
+        let mut intersection: Intersection = Default::default();
+        let mut shape: Option<&Shape> = None;
+        for object in &self.objects {
+            let result = object.intersect(ray);
+            if let Some(i) = result {
+                if i.t < min_t {
+                    intersection = i;
+                    min_t = intersection.t;
+                    shape = Some(&object);
+                }
+            }
+        }
+        match shape {
+            Some(s) => Some((s, intersection)),
+            None => None,
         }
     }
 }

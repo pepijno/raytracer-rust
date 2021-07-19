@@ -60,22 +60,3 @@ impl Shape {
     }
 }
 
-pub fn intersect_any<'a>(shapes: &'a Vec<Shape>, ray: &Ray) -> Option<(&'a Shape, Intersection)> {
-    let mut min_t: f32 = std::f32::MAX;
-    let mut intersection: Intersection = Default::default();
-    let mut shape: Option<&Shape> = None;
-    for s in shapes {
-        let result = s.intersect(ray);
-        if let Some(i) = result {
-            if i.t < min_t {
-                intersection = i;
-                min_t = intersection.t;
-                shape = Some(s);
-            }
-        }
-    }
-    match shape {
-        Some(s) => Some((s, intersection)),
-        None => None,
-    }
-}
