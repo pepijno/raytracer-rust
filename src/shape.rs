@@ -2,6 +2,7 @@ use crate::material::Material;
 use crate::material::Color;
 use crate::ray::Ray;
 use crate::vector3::Vector3;
+use std::fmt;
 
 #[derive(Default)]
 pub struct Intersection {
@@ -17,6 +18,12 @@ impl Intersection {
             hit_point: hit_point,
             hit_normal: hit_normal,
         }
+    }
+}
+
+impl fmt::Display for Intersection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Intersection({}, {}, {})", self.t, self.hit_point, self.hit_normal)
     }
 }
 
@@ -54,19 +61,19 @@ fn intersect_sphere(origin: &Vector3, radius: f32, ray: &Ray) -> Option<Intersec
 
     let tca = v.inner_product(&ray_direction);
     if tca < 0.0 {
-        return None;
+        return None
     }
 
     let d2 = v.length_squared() - tca * tca;
     if d2 > radius * radius {
-        return None;
+        return None
     }
 
     let thc = (radius * radius - d2).sqrt();
     let t = if tca - thc < 0.0 {
-        tca - thc
-    } else {
         tca + thc
+    } else {
+        tca - thc
     };
     let hit_point = ray_origin + ray_direction * t;
     let normal = (hit_point - origin).normalized();

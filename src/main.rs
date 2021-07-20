@@ -42,14 +42,42 @@ fn main() {
                 diffuse_color: Color::new(0.7, 0.7, 0.3),
                 specular_exponent: 50.0,
             };
+            let ivory2 = Material {
+                refractive_index: 1.0,
+                albedo: [0.7, 0.2, 0.1, 0.0],
+                diffuse_color: Color::new(0.8, 0.1, 0.1),
+                specular_exponent: 50.0,
+            };
+            let glass = Material {
+                refractive_index: 1.3,
+                albedo: [0.0, 0.5, 0.4, 0.8],
+                diffuse_color: Color::new(0.6, 0.7, 0.8),
+                specular_exponent: 125.0,
+            };
+            let mirror = Material {
+                refractive_index: 1.0,
+                albedo: [0.0, 10.0, 0.8, 0.0],
+                diffuse_color: Color::new(1.0, 1.0, 1.0),
+                specular_exponent: 1425.0,
+            };
+            let rubber = Material {
+                refractive_index: 1.0,
+                albedo: [0.9, 0.1, 0.0, 0.0],
+                diffuse_color: Color::new(0.3, 0.1, 0.1),
+                specular_exponent: 10.0,
+            };
 
             let objects: Vec<Shape> = vec![
-                Shape::Plane(Vector3::new(0.0, -1.0, 0.0), Vector3::new(0.0, 1.0, 0.0), ivory),
                 Shape::Sphere(Vector3::new(-1.0, 0.0, -2.0), 1.0, ivory),
+                Shape::Sphere(Vector3::new(1.0, 0.0, -2.0), 1.0, glass),
+                Shape::Sphere(Vector3::new(3.0, 0.0, -2.0), 1.0, ivory2),
+                Shape::Sphere(Vector3::new(-2.0, 2.0, -6.0), 3.0, mirror),
+                Shape::Plane(Vector3::new(0.0, -1.0, 0.0), Vector3::new(0.0, 1.0, 0.0), ivory),
             ];
 
             let lights = vec![
-                Vector3::new(-2.0, 3.0, -1.0)
+                Vector3::new(5.0, 2.0, -4.0),
+                Vector3::new(-2.0, 3.0, -1.0),
             ];
 
             let scene = Scene::new(objects, lights);
