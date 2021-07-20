@@ -4,6 +4,7 @@ use crate::ray::Ray;
 use crate::shape::Shape;
 use crate::shape::Intersection;
 use crate::vector3::Vector3;
+use std::f32::consts::PI;
 
 const MAX_DEPTH: u8 = 5;
 
@@ -31,11 +32,24 @@ impl Scene {
         match intersection {
             Some((object, int)) => {
                 let Material { refractive_index, albedo, diffuse_color, specular_exponent } = object.material();
-                let reflect_dir = ray.direction.reflect(&int.hit_normal).normalized();
-                let refract_dir = ray.direction.refract(&int.hit_normal, refractive_index, 1.0).normalized();
 
-                let reflect_color = self.trace_ray(&Ray::new(int.hit_point + reflect_dir * 0.0001, reflect_dir), depth + 1);
-                let refract_color = self.trace_ray(&Ray::new(int.hit_point + refract_dir * 0.0001, refract_dir), depth + 1);
+                let reflect_color = if albedo[2] > 0.0001 {
+                    let reflect_dir = ray.direction.reflect(&int.hit_normal).normalized();
+                    self.trace_ray(&Ray::new(int.hit_point + reflect_dir * 0.0001, reflect_dir), depth + 1)
+                } else {
+                    Color::black()
+                };
+
+                let refract_color = if albedo[3] > 0.0001 {
+                    let refract_dir = ray.direction.refract(&int.hit_normal, refractive_index, 1.0).normalized();
+                    if refract_dir.length_squared() < 0.0001 {
+                        Color::black()
+                    } else {
+                        self.trace_ray(&Ray::new(int.hit_point + refract_dir * 0.0001, refract_dir), depth + 1)
+                    }
+                } else {
+                    Color::black()
+                };
 
                 let mut diffuse_light_intensity = 0.0;
                 let mut specular_light_intensity = 0.0;

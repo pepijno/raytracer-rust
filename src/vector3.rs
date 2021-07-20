@@ -49,7 +49,7 @@ impl Vector3 {
         let eta = eta_i / eta_t;
         let k = 1.0 - eta * eta * (1.0 - cosi * cosi);
         if k < 0.0 {
-            Self { x: 1.0, y: 0.0, z: 0.0 }
+            Self { x: 0.0, y: 0.0, z: 0.0 }
         } else {
             self * eta + normal * (eta * cosi - k.sqrt())
         }
