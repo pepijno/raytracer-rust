@@ -35,21 +35,23 @@ impl Scene {
 
                 let reflect_color = if albedo[2] > 0.0001 {
                     let reflect_dir = ray.direction.reflect(&int.hit_normal).normalized();
-                    self.trace_ray(&Ray::new(int.hit_point + reflect_dir * 0.0001, reflect_dir), depth + 1)
-                } else {
-                    Color::black()
-                };
-
-                let refract_color = if albedo[3] > 0.0001 {
-                    let refract_dir = ray.direction.refract(&int.hit_normal, refractive_index, 1.0).normalized();
-                    if refract_dir.length_squared() < 0.0001 {
-                        Color::black()
+                    let color = self.trace_ray(&Ray::new(int.hit_point + reflect_dir * 0.0001, reflect_dir), depth + 1);
+                    if refractive_index != 1.0 {
+                        let mut refract_color = Color::black();
+                        let kr = fresnel(ray.direction, int.hit_normal, refractive_index);
+                        let outside = ray.direction.inner_product(&int.hit_normal) < 0.0;
+                        if kr < 1.0 {
+                            let refract_dir = ray.direction.refract(&int.hit_normal, refractive_index, 1.0).normalized();
+                            refract_color = self.trace_ray(&Ray::new(int.hit_point + refract_dir * 0.0001, refract_dir), depth + 1)
+                        }
+                        color * kr + refract_color * (1.0 - kr)
                     } else {
-                        self.trace_ray(&Ray::new(int.hit_point + refract_dir * 0.0001, refract_dir), depth + 1)
+                        color
                     }
                 } else {
                     Color::black()
                 };
+
 
                 let mut diffuse_light_intensity = 0.0;
                 let mut specular_light_intensity = 0.0;
@@ -64,7 +66,7 @@ impl Scene {
                     diffuse_light_intensity += (1.0 * light_dir.inner_product(&int.hit_normal)).max(0.0);
                     specular_light_intensity += ((-(light_dir * -1.0).reflect(&int.hit_normal).inner_product(&ray.direction)).max(0.0).powf(specular_exponent)) * 1.0;
                 }
-                return diffuse_color * diffuse_light_intensity * albedo[0] + Color::singular(1.0) * specular_light_intensity * albedo[1] + reflect_color * albedo[2] + refract_color * albedo[3];
+                return diffuse_color * diffuse_light_intensity * albedo[0] + Color::singular(1.0) * specular_light_intensity * albedo[1] + reflect_color * albedo[2];
             },
             None => Color::black(),
         }
@@ -88,5 +90,25 @@ impl Scene {
             Some(s) => Some((s, intersection)),
             None => None,
         }
+    }
+}
+
+fn fresnel(direction: Vector3, normal: Vector3, ior: f32) -> f32 {
+    let mut cosi = direction.inner_product(&normal).max(-1.0).min(1.0);
+    let (mut eta_i, mut eta_t) = (1.0, ior);
+    if cosi >= 0.0 {
+        let x = eta_i;
+        eta_i = eta_t;
+        eta_t = x;
+    }
+    let sint = (eta_i / eta_t) * (1.0 - cosi * cosi).max(0.0).sqrt();
+    if sint >= 1.0 {
+        return 1.0;
+    } else {
+        let cost = (1.0 - sint * sint).max(0.0).sqrt();
+        cosi = cosi.abs();
+        let rs = ((eta_t * cosi) - (eta_i * cost)) / ((eta_t * cosi) + (eta_i * cost));
+        let rp = ((eta_i * cosi) - (eta_t * cost)) / ((eta_i * cosi) + (eta_t * cost));
+        return (rs * rs + rp * rp) / 2.0;
     }
 }

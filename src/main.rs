@@ -49,8 +49,8 @@ fn main() {
                 specular_exponent: 50.0,
             };
             let glass = Material {
-                refractive_index: 1.3,
-                albedo: [0.0, 0.5, 0.4, 0.8],
+                refractive_index: 1.5,
+                albedo: [0.0, 0.5, 1.0, 0.8],
                 diffuse_color: Color::new(0.6, 0.7, 0.8),
                 specular_exponent: 125.0,
             };
@@ -69,8 +69,9 @@ fn main() {
 
             let objects: Vec<Shape> = vec![
                 Shape::Sphere(Vector3::new(-1.0, 0.0, -2.0), 1.0, ivory),
-                Shape::Sphere(Vector3::new(1.0, 0.0, -2.0), 1.0, glass),
-                Shape::Sphere(Vector3::new(3.0, 0.0, -2.0), 1.0, ivory2),
+                Shape::Sphere(Vector3::new(1.0, 0.0, -2.0), 1.0, ivory2),
+                Shape::Sphere(Vector3::new(2.0, 0.0, -6.0), 1.0, rubber),
+                Shape::Sphere(Vector3::new(3.0, 0.0, -2.0), 1.0, glass),
                 Shape::Sphere(Vector3::new(-2.0, 2.0, -6.0), 3.0, mirror),
                 Shape::Plane(Vector3::new(0.0, -1.0, 0.0), Vector3::new(0.0, 1.0, 0.0), ivory),
             ];
