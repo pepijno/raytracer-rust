@@ -11,10 +11,11 @@ use rust_raytracer::vector3::Vector3;
 use rust_raytracer::material::Color;
 use rust_raytracer::camera::Camera;
 use rust_raytracer::scene::Scene;
+use rust_raytracer::scene::Light;
 use rust_raytracer::shape::Shape;
 
 const THREAD_COUNT: i32 = 8;
-const SAMPLING_AMOUNT: i32 = 400;
+const SAMPLING_AMOUNT: i32 = 40;
 
 fn main() {
     let mut file = std::fs::File::create("image.ppm").expect("create failed");
@@ -46,7 +47,7 @@ fn main() {
 
             let ivory = Material {
                 refractive_index: 1.0,
-                albedo: [0.6, 0.3, 0.1, 0.0],
+                albedo: [0.6, 0.3, 0.0, 0.0],
                 diffuse_color: Color::new(0.7, 0.7, 0.3),
                 specular_exponent: 50.0,
             };
@@ -58,13 +59,13 @@ fn main() {
             };
             let glass = Material {
                 refractive_index: 1.5,
-                albedo: [0.0, 0.5, 1.0, 0.8],
+                albedo: [0.0, 0.0, 1.0, 0.8],
                 diffuse_color: Color::new(0.6, 0.7, 0.8),
                 specular_exponent: 125.0,
             };
             let mirror = Material {
                 refractive_index: 1.0,
-                albedo: [0.0, 10.0, 0.8, 0.0],
+                albedo: [0.0, 0.0, 0.8, 0.0],
                 diffuse_color: Color::new(1.0, 1.0, 1.0),
                 specular_exponent: 1425.0,
             };
@@ -82,12 +83,12 @@ fn main() {
                 Shape::Sphere(Vector3::new(3.0, 0.0, -2.0), 1.0, glass),
                 Shape::Sphere(Vector3::new(-2.0, 2.0, -6.0), 3.0, mirror),
                 Shape::Plane(Vector3::new(0.0, -1.0, 0.0), Vector3::new(0.0, 1.0, 0.0), rubber),
-                Shape::Plane(Vector3::new(-5.0, -1.0, 0.0), Vector3::new(-1.0, 0.0, 0.0), rubber),
+                Shape::Plane(Vector3::new(-5.0, -1.0, 0.0), Vector3::new(-1.0, 0.0, 0.0), ivory),
             ];
 
             let lights = vec![
-                Vector3::new(5.0, 20.0, -4.0),
-                Vector3::new(-2.0, 3.0, -1.0),
+                Light::new(&Vector3::new(5.0, 20.0, -4.0), Color::new(1.0, 0.1, 1.0), 1.5),
+                // Vector3::new(-2.0, 3.0, -1.0),
             ];
 
             let scene = Scene::new(objects, lights);

@@ -11,13 +11,30 @@ const MAX_DEPTH: u8 = 5;
 const MONTE_CARLO_RAYS: u8 = 32;
 
 #[derive(Clone)]
+pub struct Light {
+    position: Vector3,
+    color: Color,
+    intensity: f32,
+}
+
+impl Light {
+    pub fn new(position: &Vector3, color: Color, intensity: f32) -> Self {
+        Light {
+            position: *position,
+            color: color,
+            intensity: intensity,
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct Scene {
     objects: Vec<Shape>,
-    lights: Vec<Vector3>,
+    lights: Vec<Light>,
 }
 
 impl Scene {
-    pub fn new(objects: Vec<Shape>, lights: Vec<Vector3>) -> Self {
+    pub fn new(objects: Vec<Shape>, lights: Vec<Light>) -> Self {
         Self {
             objects: objects,
             lights: lights,
@@ -54,21 +71,21 @@ impl Scene {
                     Color::black()
                 };
 
-                let mut diffuse_light_intensity = 0.0;
-                let mut specular_light_intensity = 0.0;
+                let mut diffuse_light = Color::black();
+                let mut specular_light = Color::black();
                 for light in &self.lights {
-                    let light_dir = (light - int.hit_point).normalized();
+                    let light_dir = (light.position - int.hit_point).normalized();
                     let i = self.intersect_any(&Ray::new(int.hit_point + light_dir * 0.0001, light_dir));
                     if let Some((_, ix)) = i {
-                        if (ix.hit_point - int.hit_point).length_squared() < (light - int.hit_point).length_squared() {
+                        if (ix.hit_point - int.hit_point).length_squared() < (light.position - int.hit_point).length_squared() {
                             continue;
                         }
                     }
-                    diffuse_light_intensity += (1.0 * light_dir.inner_product(&int.hit_normal)).max(0.0);
-                    specular_light_intensity += ((-(light_dir * -1.0).reflect(&int.hit_normal).inner_product(&ray.direction)).max(0.0).powf(specular_exponent)) * 1.0;
+                    diffuse_light = diffuse_light + (light.intensity * light_dir.inner_product(&int.hit_normal)).max(0.0) * light.color;
+                    specular_light = specular_light + ((-(light_dir * -1.0).reflect(&int.hit_normal).inner_product(&ray.direction)).max(0.0).powf(specular_exponent)) * light.intensity * light.color;
                 }
 
-                let mut diffuse = diffuse_color * diffuse_light_intensity;
+                let mut diffuse = diffuse_color * diffuse_light;
 
                 if albedo[0] > 0.0001 {
                     let random_vector = random_in_hemisphere();
@@ -81,7 +98,7 @@ impl Scene {
                     diffuse = diffuse + self.trace_ray(&Ray::new(int.hit_point + adjusted_vector * 0.0001, adjusted_vector), depth + 1);
                 }
 
-                return diffuse * albedo[0] + Color::singular(1.0) * specular_light_intensity * albedo[1] + reflect_color * albedo[2];
+                return diffuse * albedo[0] + Color::singular(1.0) * specular_light * albedo[1] + reflect_color * albedo[2];
             },
             None => Color::black(),
         }

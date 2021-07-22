@@ -49,8 +49,10 @@ impl fmt::Display for Color {
 }
 
 overload!((a: ?Color) + (b: ?Color) -> Color { Color { r: a.r + b.r, g: a.g + b.g, b: a.b + b.b } });
+overload!((a: ?Color) * (b: ?Color) -> Color { Color { r: a.r * b.r, g: a.g * b.g, b: a.b * b.b } });
 overload!((a: ?Color) - (b: ?Color) -> Color { Color { r: a.r - b.r, g: a.g - b.g, b: a.b - b.b } });
 overload!((a: ?Color) * (b: f32) -> Color { Color { r: a.r * b, g: a.g * b, b: a.b * b } });
+overload!((b: f32) * (a: ?Color) -> Color { Color { r: a.r * b, g: a.g * b, b: a.b * b } });
 overload!((a: ?Color) / (b: f32) -> Color { Color { r: a.r / b, g: a.g / b, b: a.b / b } });
 
 #[derive(Copy, Clone)]
