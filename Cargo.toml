@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 overload = "0.1.1"
 rand = "0.8.4"
+rand_distr = "0.4.1"

@@ -23,10 +23,22 @@ impl Color {
 
     pub fn to_buffer(&self) -> [u8; 3] {
         [
-            ((self.r * 255.0).min(255.0)).max(0.0) as u8,
-            ((self.g * 255.0).min(255.0)).max(0.0) as u8,
-            ((self.b * 255.0).min(255.0)).max(0.0) as u8,
+            self.r_byte(),
+            self.g_byte(),
+            self.b_byte(),
         ]
+    }
+
+    pub fn r_byte(&self) -> u8 {
+        ((self.r * 255.0).min(255.0)).max(0.0) as u8
+    }
+
+    pub fn g_byte(&self) -> u8 {
+        ((self.g * 255.0).min(255.0)).max(0.0) as u8
+    }
+
+    pub fn b_byte(&self) -> u8 {
+        ((self.b * 255.0).min(255.0)).max(0.0) as u8
     }
 }
 
@@ -39,6 +51,7 @@ impl fmt::Display for Color {
 overload!((a: ?Color) + (b: ?Color) -> Color { Color { r: a.r + b.r, g: a.g + b.g, b: a.b + b.b } });
 overload!((a: ?Color) - (b: ?Color) -> Color { Color { r: a.r - b.r, g: a.g - b.g, b: a.b - b.b } });
 overload!((a: ?Color) * (b: f32) -> Color { Color { r: a.r * b, g: a.g * b, b: a.b * b } });
+overload!((a: ?Color) / (b: f32) -> Color { Color { r: a.r / b, g: a.g / b, b: a.b / b } });
 
 #[derive(Copy, Clone)]
 pub struct Material {

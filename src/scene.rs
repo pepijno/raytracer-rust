@@ -4,9 +4,11 @@ use crate::ray::Ray;
 use crate::shape::Shape;
 use crate::shape::Intersection;
 use crate::vector3::Vector3;
+use crate::vector3::random_in_hemisphere;
 use std::f32::consts::PI;
 
 const MAX_DEPTH: u8 = 5;
+const MONTE_CARLO_RAYS: u8 = 32;
 
 #[derive(Clone)]
 pub struct Scene {
@@ -52,7 +54,6 @@ impl Scene {
                     Color::black()
                 };
 
-
                 let mut diffuse_light_intensity = 0.0;
                 let mut specular_light_intensity = 0.0;
                 for light in &self.lights {
@@ -66,7 +67,21 @@ impl Scene {
                     diffuse_light_intensity += (1.0 * light_dir.inner_product(&int.hit_normal)).max(0.0);
                     specular_light_intensity += ((-(light_dir * -1.0).reflect(&int.hit_normal).inner_product(&ray.direction)).max(0.0).powf(specular_exponent)) * 1.0;
                 }
-                return diffuse_color * diffuse_light_intensity * albedo[0] + Color::singular(1.0) * specular_light_intensity * albedo[1] + reflect_color * albedo[2];
+
+                let mut diffuse = diffuse_color * diffuse_light_intensity;
+
+                if albedo[0] > 0.0001 {
+                    let random_vector = random_in_hemisphere();
+                    let (nx, ny, nz) = int.hit_normal.create_coord_system();
+                    let adjusted_vector = Vector3 {
+                        x: random_vector.x * nz.x + random_vector.y * nx.x + random_vector.z * ny.x,
+                        y: random_vector.x * nz.y + random_vector.y * nx.y + random_vector.z * ny.y,
+                        z: random_vector.x * nz.z + random_vector.y * nx.z + random_vector.z * ny.z,
+                    };
+                    diffuse = diffuse + self.trace_ray(&Ray::new(int.hit_point + adjusted_vector * 0.0001, adjusted_vector), depth + 1);
+                }
+
+                return diffuse * albedo[0] + Color::singular(1.0) * specular_light_intensity * albedo[1] + reflect_color * albedo[2];
             },
             None => Color::black(),
         }

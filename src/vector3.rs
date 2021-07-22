@@ -54,6 +54,24 @@ impl Vector3 {
             self * eta + normal * (eta * cosi - k.sqrt())
         }
     }
+
+    pub fn create_coord_system(&self) -> (Self, Self, Self) {
+        let nt = if self.x.abs() > self.y.abs() {
+            Vector3 {
+                x: self.z,
+                y: 0.0,
+                z: -self.x
+            } / (self.x * self.x + self.z * self.z).sqrt()
+        } else {
+            Vector3 {
+                x: 0.0,
+                y: -self.z,
+                z: self.y
+            } / (self.y * self.y + self.z * self.z).sqrt()
+        };
+        let nb = self.outer_product(&nt);
+        (*self, nt, nb)
+    }
 }
 
 pub fn random_in_unit_disk() -> Vector3 {
@@ -67,10 +85,25 @@ pub fn random_in_unit_disk() -> Vector3 {
     }
 }
 
+pub fn random_in_hemisphere() -> Vector3 {
+    let mut rng = rand::thread_rng();
+    let r = rng.gen::<f32>();
+    let sin_theta = (1.0 - r * r).sqrt();
+    let phi: f32 = (rng.gen::<f32>()) * 2.0 * PI;
+    let x = sin_theta * phi.cos();
+    let z = sin_theta * phi.sin();
+    Vector3 {
+        x: x,
+        y: r,
+        z: z
+    }
+}
+
 overload!((a: ?Vector3) + (b: ?Vector3) -> Vector3 { Vector3 { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z } });
 overload!((a: ?Vector3) - (b: ?Vector3) -> Vector3 { Vector3 { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z } });
 overload!((a: ?Vector3) * (b: f32) -> Vector3 { Vector3 { x: a.x * b, y: a.y * b, z: a.z * b } });
 overload!((b: f32) * (a: ?Vector3) -> Vector3 { Vector3 { x: a.x * b, y: a.y * b, z: a.z * b } });
+overload!((a: ?Vector3) / (b: f32) -> Vector3 { Vector3 { x: a.x / b, y: a.y / b, z: a.z / b } });
 
 impl fmt::Display for Vector3 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
