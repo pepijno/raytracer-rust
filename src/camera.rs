@@ -25,7 +25,7 @@ impl Camera {
         let v = w.outer_product(&u);
         Camera {
             origin: *look_from,
-            screen_dl: look_from - u * half_width * focus_distance- v * half_height * focus_distance - w * focus_distance,
+            screen_dl: look_from - u * half_width * focus_distance - v * half_height * focus_distance - w * focus_distance,
             horizontal: u * 2.0 * half_width * focus_distance,
             vertical: v * 2.0 * half_height * focus_distance,
             u: u,

@@ -3,22 +3,38 @@ use overload::overload;
 use std::ops; // <- don't forget this or you'll get nasty errors
 use std::fmt;
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Color {
-    r: f32,
-    g: f32,
-    b: f32,
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
 }
 
 impl Color {
     pub fn black() -> Self {
         Self { r: 0.0, g: 0.0, b: 0.0 }
     }
-    pub fn singular(c: f32) -> Self {
-        Self { r: c, g: c, b: c }
+    pub fn white() -> Self {
+        Self { r: 1.0, g: 1.0, b: 1.0 }
     }
     pub fn new(r: f32, g: f32, b: f32) -> Self {
         Self { r: r, g: g, b: b }
+    }
+
+    pub fn max(&self) -> f32 {
+        self.r.max(self.g).max(self.b)
+    }
+
+    pub fn sum(&self) -> f32 {
+        self.r + self.g + self.b
+    }
+
+    pub fn capped(&self) -> Self {
+        Color {
+            r: self.r.min(1.0),
+            g: self.g.min(1.0),
+            b: self.b.min(1.0),
+        }
     }
 
     pub fn to_buffer(&self) -> [u8; 3] {
@@ -54,11 +70,15 @@ overload!((a: ?Color) - (b: ?Color) -> Color { Color { r: a.r - b.r, g: a.g - b.
 overload!((a: ?Color) * (b: f32) -> Color { Color { r: a.r * b, g: a.g * b, b: a.b * b } });
 overload!((b: f32) * (a: ?Color) -> Color { Color { r: a.r * b, g: a.g * b, b: a.b * b } });
 overload!((a: ?Color) / (b: f32) -> Color { Color { r: a.r / b, g: a.g / b, b: a.b / b } });
+overload!((a: &mut Color) += (b: ?Color) { a.r += b.r; a.g += b.g; a.b += b.b; });
+overload!((a: &mut Color) -= (b: ?Color) { a.r -= b.r; a.g -= b.g; a.b -= b.b; });
+overload!((a: &mut Color) *= (b: f32) { a.r *= b; a.g *= b; a.b *= b; });
+overload!((a: &mut Color) /= (b: f32) { a.r /= b; a.g /= b; a.b /= b; });
 
 #[derive(Copy, Clone)]
 pub struct Material {
     pub refractive_index: f32,
-    pub albedo: [f32; 4],
     pub diffuse_color: Color,
     pub specular_exponent: f32,
+    pub reflect_color: Color,
 }

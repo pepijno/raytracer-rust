@@ -1,5 +1,4 @@
-use crate::material::Material;
-use crate::material::Color;
+use crate::material::*;
 use crate::ray::Ray;
 use crate::vector3::Vector3;
 use std::fmt;
@@ -28,9 +27,44 @@ impl fmt::Display for Intersection {
 }
 
 #[derive(Clone)]
+pub struct Object {
+    pub shape: Shape,
+    pub material: Material,
+}
+
+impl Object {
+    pub fn new(shape: Shape, material: Material) -> Self {
+        Object {
+            shape: shape,
+            material: material
+        }
+    }
+
+    pub fn intersect_any(objects: &Vec<Object>, ray: &Ray) -> Option<(Material, Intersection)> {
+        let mut min_t: f32 = std::f32::MAX;
+        let mut intersection: Intersection = Default::default();
+        let mut material: Option<&Material> = None;
+        for object in objects {
+            let result = object.shape.intersect(ray);
+            if let Some(i) = result {
+                if i.t < min_t {
+                    intersection = i;
+                    min_t = intersection.t;
+                    material = Some(&object.material);
+                }
+            }
+        }
+        match material {
+            Some(m) => Some((*m, intersection)),
+            None => None,
+        }
+    }
+}
+
+#[derive(Clone)]
 pub enum Shape {
-    Plane(Vector3, Vector3, Material),
-    Sphere(Vector3, f32, Material),
+    Plane(Vector3, Vector3),
+    Sphere(Vector3, f32),
 }
 
 fn intersect_plane(origin: &Vector3, normal: &Vector3, ray: &Ray) -> Option<Intersection> {
@@ -83,15 +117,8 @@ fn intersect_sphere(origin: &Vector3, radius: f32, ray: &Ray) -> Option<Intersec
 impl Shape {
     pub fn intersect(&self, ray: &Ray) -> Option<Intersection> {
         match self {
-            Shape::Plane(origin, normal, _) => intersect_plane(origin, normal, ray),
-            Shape::Sphere(origin, radius, _) => intersect_sphere(origin, *radius, ray),
-        }
-    }
-
-    pub fn material(&self) -> Material {
-        match self {
-            Shape::Plane(_, _, material) => *material,
-            Shape::Sphere(_, _, material) => *material,
+            Shape::Plane(origin, normal) => intersect_plane(origin, normal, ray),
+            Shape::Sphere(origin, radius) => intersect_sphere(origin, *radius, ray),
         }
     }
 }

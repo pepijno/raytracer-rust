@@ -24,6 +24,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "kdtree"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b63d659081717fe428fbaf9549559083956450194e57e8d28498a0dfa31b3b04"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.98"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -111,6 +120,8 @@ dependencies = [
 name = "rust-raytracer"
 version = "0.1.0"
 dependencies = [
+ "kdtree",
+ "num-traits",
  "overload",
  "rand",
  "rand_distr",
