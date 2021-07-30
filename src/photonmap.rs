@@ -1,9 +1,7 @@
-#![feature(ptr_offset_from)]
 use crate::vector3::Vector3;
 use crate::material::Color;
 use core::f32::consts::PI;
 use std::cmp::Ordering;
-use std::fmt;
 
 const N_PHOTON_RADIANCE: usize = 200;
 
@@ -46,17 +44,6 @@ pub struct PhotonMap {
     prev_scale: usize,
     heap: Vec<Neighbor>,
     max_distance: f32,
-}
-
-impl fmt::Display for PhotonMap {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "PhotonMap (photons: [\n");
-        for i in 0..self.stored_photons {
-            let photon = &self.photons[i];
-            write!(f, "\t{}: {:?}\n", i, photon);
-        }
-        write!(f, "])")
-    }
 }
 
 impl PhotonMap {
@@ -117,17 +104,17 @@ impl PhotonMap {
         let max_var = var.x.max(var.y).max(var.z);
 
         if max_var == var.x {
-            let mut slice = &mut self.photons[begin..end];
+            let slice = &mut self.photons[begin..end];
             slice.sort_by(|a, b| a.position.x.partial_cmp(&b.position.x).unwrap_or(Ordering::Equal));
             self.photons[median].plane = Flag::XAxis;
         }
         if max_var == var.y {
-            let mut slice = &mut self.photons[begin..end];
+            let slice = &mut self.photons[begin..end];
             slice.sort_by(|a, b| a.position.y.partial_cmp(&b.position.y).unwrap_or(Ordering::Equal));
             self.photons[median].plane = Flag::YAxis;
         }
         if max_var == var.z {
-            let mut slice = &mut self.photons[begin..end];
+            let slice = &mut self.photons[begin..end];
             slice.sort_by(|a, b| a.position.z.partial_cmp(&b.position.z).unwrap_or(Ordering::Equal));
             self.photons[median].plane = Flag::ZAxis;
         }
@@ -145,7 +132,6 @@ impl PhotonMap {
         if size == 0 {
             return result;
         }
-        let k = 0.0;
         for i in 0..size {
             let photon = &self.photons[self.heap[i].index];
             result += photon.power * normal.inner_product(&photon.direction).max(0.0);
@@ -238,7 +224,6 @@ impl PhotonMap {
         let new_size = size - 1;
 
         let mut i = 0;
-        let (mut i_val, mut left_val, mut right_val) = (0.0, 0.0, 0.0);
 
         loop {
             let left = 2 * i + 1;
@@ -247,9 +232,9 @@ impl PhotonMap {
                 return new_size;
             }
 
-            i_val = self.heap[i].distance_squared;
-            left_val = if left < new_size { self.heap[left].distance_squared } else { -1.0 };
-            right_val = if right < new_size { self.heap[right].distance_squared } else { -1.0 };
+            let i_val = self.heap[i].distance_squared;
+            let left_val = if left < new_size { self.heap[left].distance_squared } else { -1.0 };
+            let right_val = if right < new_size { self.heap[right].distance_squared } else { -1.0 };
 
             if i_val >= left_val && i_val >= right_val {
                 return new_size;

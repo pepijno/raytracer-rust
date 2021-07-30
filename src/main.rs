@@ -2,23 +2,20 @@ extern crate rand_distr;
 extern crate rand;
 
 use std::io::Write;
-use std::thread;
-use std::sync::mpsc;
+// use std::thread;
 use rand_distr::{Distribution, Uniform};
 use std::sync::Arc;
-use std::sync::Mutex;
+// use std::sync::mpsc;
+// use std::sync::Mutex;
 
-use rust_raytracer::material::Material;
-use rust_raytracer::vector3::Vector3;
-use rust_raytracer::material::Color;
-use rust_raytracer::camera::Camera;
+use rust_raytracer::vector3::*;
+use rust_raytracer::material::*;
+use rust_raytracer::camera::*;
 use rust_raytracer::scene::*;
-// use rust_raytracer::scene::Photon;
-use rust_raytracer::shape::Shape;
-use rust_raytracer::shape::Object;
+use rust_raytracer::shape::*;
 use rust_raytracer::photonmap::*;
 
-const THREAD_COUNT: i32 = 8;
+// const THREAD_COUNT: i32 = 8;
 const SAMPLING_AMOUNT: i32 = 10;
 const PHOTON_MAP_N: usize = 400000;
 
@@ -76,7 +73,7 @@ fn create_scene() -> Scene {
     ];
 
     let lights = vec![
-        Light::new(&Vector3::new(5.0, 10.0, -4.0), Color::new(1.0, 1.0, 1.0), 2500.0),
+        Light::new(&Vector3::new(5.0, 10.0, -4.0), Color::new(1.0, 1.0, 1.0), 5000.0),
         // Light::new(&Vector3::new(-4.0, 12.0, -3.0), Color::new(1.0, 1.0, 1.0), 2500.0),
     ];
 
@@ -140,7 +137,7 @@ fn main() {
     // println!("{:?}", heap);
     // return;
 
-    let mut colors = vec!(vec!(Color::black(); WIDTH as usize); HEIGHT as usize);
+    // let mut colors = vec!(vec!(Color::black(); WIDTH as usize); HEIGHT as usize);
 
 //     let (tx, rx) = mpsc::channel();
 //     handles = vec![];
@@ -157,17 +154,17 @@ fn main() {
                 println!("{}", y);
                 for x in 0..WIDTH {
                     let mut color = Color::black();
-                    for _ in 0..SAMPLING_AMOUNT {
-                        let ra = between.sample(&mut rng);
-                        let rb = between.sample(&mut rng);
-                        let a = (x as f32 + ra)/(WIDTH as f32);
-                        let b = (y as f32 + rb)/(HEIGHT as f32);
-                        // let a = (x as f32)/(WIDTH as f32);
-                        // let b = (y as f32)/(HEIGHT as f32);
+                    // for _ in 0..SAMPLING_AMOUNT {
+                    //     let ra = between.sample(&mut rng);
+                    //     let rb = between.sample(&mut rng);
+                    //     let a = (x as f32 + ra)/(WIDTH as f32);
+                    //     let b = (y as f32 + rb)/(HEIGHT as f32);
+                        let a = (x as f32)/(WIDTH as f32);
+                        let b = (y as f32)/(HEIGHT as f32);
                         let ray = camera.create_ray(false, a, b);
                         color = color + &scene.trace_ray(&mut photon_map_global, &mut photon_map_caustic, &ray, 0);
-                    }
-                    color = color * (1.0 / (SAMPLING_AMOUNT as f32));
+                    // }
+                    // color = color * (1.0 / (SAMPLING_AMOUNT as f32));
                     let buf = color.to_buffer();
                     file.write_all(&buf).expect("write failed");
                     // tx1.send((x, y, color));

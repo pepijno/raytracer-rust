@@ -11,7 +11,6 @@ pub struct Camera {
     vertical: Vector3,
     u: Vector3,
     v: Vector3,
-    w: Vector3,
     lens_radius: f32,
 }
 
@@ -30,7 +29,6 @@ impl Camera {
             vertical: v * 2.0 * half_height * focus_distance,
             u: u,
             v: v,
-            w: w,
             lens_radius: aperture / 2.0,
         }
     }

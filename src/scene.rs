@@ -8,7 +8,7 @@ use crate::vector3::*;
 use crate::photonmap::*;
 
 const MAX_DEPTH: u8 = 6;
-const N_SHADOW_RAY: u8 = 5;
+// const N_SHADOW_RAY: u8 = 5;
 
 #[derive(Clone)]
 pub struct Light {
@@ -53,7 +53,7 @@ impl Scene {
         let mut total_diffuse_color = Color::black();
         let mut total_specular_color = Color::black();
 
-        for Light { position, color, intensity } in &self.lights {
+        for Light { position, color, intensity: _ } in &self.lights {
             let light_dir = (position - intersection.hit_point).normalized();
             let int = Object::intersect_any(&self.objects, &Ray::new(intersection.hit_point + light_dir * 0.0001, light_dir));
             if let Some((_, i)) = int {
@@ -82,7 +82,7 @@ impl Scene {
 
         match intersection {
             Some((material, int)) => {
-                let Material { refractive_index, diffuse_color, reflect_color, specular_exponent } = material;
+                let Material { refractive_index, diffuse_color, reflect_color, specular_exponent: _ } = material;
 
                 if refractive_index == 0.0 {
                     let (direct_color, specular_color) = self.direct_illumination(&ray, &int, &material);
@@ -100,24 +100,18 @@ impl Scene {
                     let reflect_dir = ray.direction.reflect(&int.hit_normal).normalized();
                     let reflect_ray = Ray::new(&int.hit_point + 0.0001 * reflect_dir, reflect_dir);
 
-                    let mut entering = false;
-                    let mut n: f32 = 0.0;
-                    let mut nt: f32 = 0.0;
-                    let mut refracted = Vector3::new(0.0, 0.0, 0.0);
-                    let mut c: f32 = 0.0;
+                    let nt: f32;
+                    let c: f32;
                     let mut t = Vector3::new(0.0, 0.0, 0.0);
                     if ray.direction.inner_product(&int.hit_normal) < 0.0 {
-                        entering = true;
-                        n = 1.0;
+                        let n = 1.0;
                         nt = refractive_index;
                         if let Some(v) = refract(&ray.direction, &int.hit_normal, n, nt) {
-                            refracted = v;
                             t = v;
                         }
                         c = -1.0 * ray.direction.inner_product(&int.hit_normal);
                     } else {
-                        entering = false;
-                        n = refractive_index;
+                        let n = refractive_index;
                         nt = 1.0;
                         if let Some(v) = refract(&ray.direction, &(int.hit_normal * -1.0), n, nt) {
                             c = v.normalized().inner_product(&int.hit_normal);
@@ -131,13 +125,8 @@ impl Scene {
                     let r = r0 + (1.0 - r0) * (1.0 - c).powf(5.0);
                     let refract_ray = Ray::new(&int.hit_point + 0.0001 * t.normalized(), t.normalized());
 
-                    if entering {
-                        return Color::white() * (r * self.trace_ray(photon_map_global, photon_map_caustic, &reflect_ray, depth + 1)
-                                                 + (1.0 - r) * self.trace_ray(photon_map_global, photon_map_caustic, &refract_ray, depth + 1));
-                    } else {
-                        return Color::white() * (r * self.trace_ray(photon_map_global, photon_map_caustic, &reflect_ray, depth + 1)
-                                                 + (1.0 - r) * self.trace_ray(photon_map_global, photon_map_caustic, &refract_ray, depth + 1));
-                    }
+                    return Color::white() * (r * self.trace_ray(photon_map_global, photon_map_caustic, &reflect_ray, depth + 1)
+                                             + (1.0 - r) * self.trace_ray(photon_map_global, photon_map_caustic, &refract_ray, depth + 1));
                 }
             },
             None => Color::black(),
@@ -168,7 +157,7 @@ impl Scene {
 
         match intersection {
             Some((material, int)) => {
-                let Material { refractive_index, diffuse_color, reflect_color, specular_exponent } = material;
+                let Material { refractive_index, diffuse_color, reflect_color, specular_exponent: _ } = material;
 
                 let mut bounce = BounceType::NONE;
                 let mut rng = rand::thread_rng();
@@ -218,25 +207,19 @@ impl Scene {
                 } else {
                     let reflect_dir = ray.direction.reflect(&int.hit_normal).normalized();
                     let reflect_ray = Ray::new(&int.hit_point + 0.0001 * reflect_dir, reflect_dir);
-                    let reflected_photon_color = color * Color::white();
 
-                    let mut entering = false;
-                    let mut n: f32 = 0.0;
-                    let mut nt: f32 = 0.0;
-                    let mut refracted = Vector3::new(0.0, 0.0, 0.0);
-                    let mut c: f32 = 0.0;
+                    let n: f32;
+                    let nt: f32;
+                    let c: f32;
                     let mut t = Vector3::new(0.0, 0.0, 0.0);
                     if ray.direction.inner_product(&int.hit_normal) < 0.0 {
-                        entering = true;
                         n = 1.0;
                         nt = refractive_index;
                         if let Some(v) = refract(&ray.direction, &int.hit_normal, n, nt) {
-                            refracted = v;
                             t = v;
                         }
                         c = -1.0 * ray.direction.inner_product(&int.hit_normal);
                     } else {
-                        entering = false;
                         n = refractive_index;
                         nt = 1.0;
                         if let Some(v) = refract(&ray.direction, &(int.hit_normal * -1.0), n, nt) {
@@ -251,18 +234,10 @@ impl Scene {
                     let r = r0 + (1.0 - r0) * (1.0 - c).powf(5.0);
                     let refract_ray = Ray::new(&int.hit_point + 0.0001 * t.normalized(), t.normalized());
 
-                    if entering {
-                        if rng.gen::<f32>() < r {
-                            return self.trace_photon(photon_map_global, photon_map_caustic, &reflect_ray, color, depth + 1, BounceType::SPECULAR);
-                        } else {
-                            return self.trace_photon(photon_map_global, photon_map_caustic, &refract_ray, color, depth + 1, BounceType::SPECULAR);
-                        }
+                    if rng.gen::<f32>() < r {
+                        return self.trace_photon(photon_map_global, photon_map_caustic, &reflect_ray, color, depth + 1, BounceType::SPECULAR);
                     } else {
-                        if rng.gen::<f32>() < r {
-                            return self.trace_photon(photon_map_global, photon_map_caustic, &reflect_ray, color, depth + 1, BounceType::SPECULAR);
-                        } else {
-                            return self.trace_photon(photon_map_global, photon_map_caustic, &refract_ray, color, depth + 1, BounceType::SPECULAR);
-                        }
+                        return self.trace_photon(photon_map_global, photon_map_caustic, &refract_ray, color, depth + 1, BounceType::SPECULAR);
                     }
                 }
             },
@@ -286,24 +261,4 @@ fn reflect_probability(coefficient: &Color, power: &Color) -> f32 {
     let numerator = (coefficient.r * power.r).max(coefficient.g * power.g).max(coefficient.b * power.b);
     let denominator = power.r.max(power.g).max(power.b);
     numerator / denominator
-}
-
-fn fresnel(direction: Vector3, normal: Vector3, ior: f32) -> f32 {
-    let mut cosi = direction.inner_product(&normal).max(-1.0).min(1.0);
-    let (mut eta_i, mut eta_t) = (1.0, ior);
-    if cosi >= 0.0 {
-        let x = eta_i;
-        eta_i = eta_t;
-        eta_t = x;
-    }
-    let sint = (eta_i / eta_t) * (1.0 - cosi * cosi).max(0.0).sqrt();
-    if sint >= 1.0 {
-        return 1.0;
-    } else {
-        let cost = (1.0 - sint * sint).max(0.0).sqrt();
-        cosi = cosi.abs();
-        let rs = ((eta_t * cosi) - (eta_i * cost)) / ((eta_t * cosi) + (eta_i * cost));
-        let rp = ((eta_i * cosi) - (eta_t * cost)) / ((eta_i * cosi) + (eta_t * cost));
-        return (rs * rs + rp * rp) / 2.0;
-    }
 }
