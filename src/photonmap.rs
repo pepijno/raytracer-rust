@@ -27,21 +27,44 @@ pub struct Heap {
 }
 
 impl Heap {
-    fn heap_add(&mut self, size: usize, index: usize, distance_squared: f32) -> usize {
-        let mut i = size;
-        self.items[i].index = index;
-        self.items[i].distance_squared = distance_squared;
-        let new_size = size + 1;
+    pub fn new() -> Self {
+        Heap {
+            items: [Neighbor { distance_squared: 0.0, index: 0 }; N_PHOTON_RADIANCE],
+            size: 0,
+            max_distance_squared: 0.0,
+        }
+    }
+
+    pub fn reset(&mut self) -> () {
+        self.size = 0;
+        self.max_distance_squared = 100.0;
+    }
+
+    fn add_photon(&mut self, index: usize, distance_squared: f32) -> () {
+        if self.size == N_PHOTON_RADIANCE {
+            self.heap_remove();
+        }
+
+        self.heap_add(index, distance_squared);
+
+        self.max_distance_squared = self.items[0].distance_squared;
+    }
+
+    fn heap_add(&mut self, index: usize, distance_squared: f32) -> () {
+        self.items[self.size].index = index;
+        self.items[self.size].distance_squared = distance_squared;
+        let mut i = self.size;
+        self.size += 1;
 
         loop {
             if i == 0 {
-                return new_size;
+                return;
             }
             let parent = (i - 1) / 2;
             let i_val = self.items[i].distance_squared;
             let parent_val = self.items[parent].distance_squared;
             if parent_val >= i_val {
-                return new_size;
+                return;
             }
 
             self.items.swap(i, parent);
@@ -49,26 +72,25 @@ impl Heap {
         }
     }
 
-    fn heap_remove(&mut self, size: usize) -> usize {
-        self.items[0].index = self.items[size - 1].index;
-        self.items[0].distance_squared = self.items[size - 1].distance_squared;
-        let new_size = size - 1;
-
+    fn heap_remove(&mut self) -> () {
+        self.items[0].index = self.items[self.size - 1].index;
+        self.items[0].distance_squared = self.items[self.size - 1].distance_squared;
+        self.size -= 1;
         let mut i = 0;
 
         loop {
             let left = 2 * i + 1;
             let right = 2 * i + 2;
-            if left >= new_size && right >= new_size {
-                return new_size;
+            if left >= self.size && right >= self.size {
+                return;
             }
 
             let i_val = self.items[i].distance_squared;
-            let left_val = if left < new_size { self.items[left].distance_squared } else { -1.0 };
-            let right_val = if right < new_size { self.items[right].distance_squared } else { -1.0 };
+            let left_val = if left < self.size { self.items[left].distance_squared } else { -1.0 };
+            let right_val = if right < self.size { self.items[right].distance_squared } else { -1.0 };
 
             if i_val >= left_val && i_val >= right_val {
-                return new_size;
+                return;
             }
 
             if left_val == -1.0 && right_val != -1.0 {
@@ -99,9 +121,9 @@ pub struct PhotonMap {
     photons: Vec<Photon>,
     pub stored_photons: usize,
     prev_scale: usize,
-    heap: Vec<Neighbor>,
-    max_distance: f32,
 }
+
+unsafe impl Sync for PhotonMap {}
 
 impl PhotonMap {
     pub fn new() -> Self {
@@ -109,8 +131,6 @@ impl PhotonMap {
             photons: Vec::new(),
             stored_photons: 0,
             prev_scale: 1,
-            heap: vec![ Neighbor { distance_squared: 0.0, index: 0 }; N_PHOTON_RADIANCE],
-            max_distance: 100.0,
         }
     }
 
@@ -181,28 +201,27 @@ impl PhotonMap {
         return;
     }
 
-    pub fn irradiance_estimate(&mut self, position: &Vector3, normal: &Vector3) -> Color {
-        self.max_distance = 100.0;
+    pub fn irradiance_estimate(&self, heap: &mut Heap, position: &Vector3, normal: &Vector3) -> Color {
         let mut result = Color::black();
-        let (distance_squared, size) = self.lookup(position, normal, 0, self.stored_photons, 100.0, 0);
+        self.lookup(heap, position, normal, 0, self.stored_photons);
 
-        if size == 0 {
+        if heap.size == 0 {
             return result;
         }
-        for i in 0..size {
-            let photon = &self.photons[self.heap[i].index];
+        for i in 0..heap.size {
+            let photon = &self.photons[heap.items[i].index];
             result += photon.power * normal.inner_product(&photon.direction).max(0.0);
         }
 
-        return result * (1.0 / (distance_squared * PI));
+        return result * (1.0 / (heap.max_distance_squared * PI));
     }
 
-    fn lookup(&mut self, position: &Vector3, normal: &Vector3, begin: usize, end: usize, distance_squared: f32, size: usize) -> (f32, usize) {
+    fn lookup(&self, heap: &mut Heap, position: &Vector3, normal: &Vector3, begin: usize, end: usize) -> () {
         if begin == end {
-            return (distance_squared, size);
+            return;
         }
         if begin + 1 == end {
-            return self.add_neighbor(position, normal, begin, distance_squared, size);
+            return self.add_neighbor(heap, position, normal, begin);
         }
 
         let median = begin + (end - begin) / 2;
@@ -211,103 +230,38 @@ impl PhotonMap {
         let position_value = position_value(position, flag);
 
         if position_value <= split_value {
-            let (a, b) = self.lookup(position, normal, begin, median, distance_squared, size);
-            let (c, d) = self.add_neighbor(position, normal, median, a, b);
-            if d >= N_PHOTON_RADIANCE && (position_value - split_value) * (position_value - split_value) > c {
-                return (c, d);
+            self.lookup(heap, position, normal, begin, median);
+            self.add_neighbor(heap, position, normal, median);
+            if heap.size >= N_PHOTON_RADIANCE && (position_value - split_value) * (position_value - split_value) > heap.max_distance_squared {
+                return;
             }
 
-            return self.lookup(position, normal, median + 1, end, c, d);
+            return self.lookup(heap, position, normal, median + 1, end);
         } else {
-            let (a, b) = self.lookup(position, normal, median + 1, end, distance_squared, size);
-            let (c, d) = self.add_neighbor(position, normal, median, a, b);
-            if d >= N_PHOTON_RADIANCE && (position_value - split_value) * (position_value - split_value) > c {
-                return (c, d);
+            self.lookup(heap, position, normal, median + 1, end);
+            self.add_neighbor(heap, position, normal, median);
+            if heap.size >= N_PHOTON_RADIANCE && (position_value - split_value) * (position_value - split_value) > heap.max_distance_squared {
+                return;
             }
 
-            return self.lookup(position, normal, begin, median, c, d);
+            return self.lookup(heap, position, normal, begin, median);
         }
     }
 
-    fn add_neighbor(&mut self, position: &Vector3, normal: &Vector3, index: usize, distance: f32, size: usize) -> (f32, usize) {
+    fn add_neighbor(&self, heap: &mut Heap, position: &Vector3, normal: &Vector3, index: usize) -> () {
         if (position - self.photons[index].position).normalized().inner_product(normal).abs() > 0.033 {
-            return (distance, size);
+            return;
         }
 
         let distance_squared = (self.photons[index].position - position).length_squared();
-        if size < N_PHOTON_RADIANCE || distance_squared < distance {
-            let mut new_size = size;
-            if size == N_PHOTON_RADIANCE {
-                new_size = self.heap_remove(size);
-            }
-
-            new_size = self.heap_add(new_size, index, distance_squared);
-
-            return (self.heap[0].distance_squared, new_size);
+        if heap.size < N_PHOTON_RADIANCE || distance_squared < heap.max_distance_squared {
+            return heap.add_photon(index, distance_squared);
         }
-        return (distance, size);
+        return;
     }
 
     fn split_value(&self, index: usize, axis: Flag) -> f32 {
         position_value(&self.photons[index].position, axis)
-    }
-
-    fn heap_add(&mut self, size: usize, index: usize, distance_squared: f32) -> usize {
-        let mut i = size;
-        self.heap[i].index = index;
-        self.heap[i].distance_squared = distance_squared;
-        let new_size = size + 1;
-
-        loop {
-            if i == 0 {
-                return new_size;
-            }
-            let parent = (i - 1) / 2;
-            let i_val = self.heap[i].distance_squared;
-            let parent_val = self.heap[parent].distance_squared;
-            if parent_val >= i_val {
-                return new_size;
-            }
-
-            self.heap.swap(i, parent);
-            i = parent;
-        }
-    }
-
-    fn heap_remove(&mut self, size: usize) -> usize {
-        self.heap[0].index = self.heap[size - 1].index;
-        self.heap[0].distance_squared = self.heap[size - 1].distance_squared;
-        let new_size = size - 1;
-
-        let mut i = 0;
-
-        loop {
-            let left = 2 * i + 1;
-            let right = 2 * i + 2;
-            if left >= new_size && right >= new_size {
-                return new_size;
-            }
-
-            let i_val = self.heap[i].distance_squared;
-            let left_val = if left < new_size { self.heap[left].distance_squared } else { -1.0 };
-            let right_val = if right < new_size { self.heap[right].distance_squared } else { -1.0 };
-
-            if i_val >= left_val && i_val >= right_val {
-                return new_size;
-            }
-
-            if left_val == -1.0 && right_val != -1.0 {
-                self.heap.swap(i, right);
-                i = right;
-            } else if left_val != -1.0 && right_val == -1.0 {
-                self.heap.swap(i, left);
-                i = right;
-            } else {
-                let bigger = if left_val > right_val { left } else { right };
-                self.heap.swap(i, bigger);
-                i = bigger;
-            }
-        }
     }
 }
 

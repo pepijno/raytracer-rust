@@ -19,7 +19,7 @@ use rust_raytracer::photonmap::*;
 const SAMPLING_AMOUNT: i32 = 10;
 const PHOTON_MAP_N: usize = 400000;
 
-const SIZE: i32 = 300;
+const SIZE: i32 = 150;
 const ASPECT_RATIO: f32 = 1.66;
 const HEIGHT: u32 = (2 * SIZE) as u32;
 const WIDTH: u32 = (2.0 * ASPECT_RATIO * (SIZE as f32)) as u32;
@@ -148,6 +148,7 @@ fn main() {
 //         let handle = thread::spawn(move || {
             let between = Uniform::new(-0.5, 0.5);
             let mut rng = rand::thread_rng();
+            let mut heap = Heap::new();
 
             for y in 0..HEIGHT {
             // for y in (id..(HEIGHT as i32)).step_by(THREAD_COUNT as usize) {
@@ -162,7 +163,7 @@ fn main() {
                         let a = (x as f32)/(WIDTH as f32);
                         let b = (y as f32)/(HEIGHT as f32);
                         let ray = camera.create_ray(false, a, b);
-                        color = color + &scene.trace_ray(&mut photon_map_global, &mut photon_map_caustic, &ray, 0);
+                        color = color + &scene.trace_ray(&mut heap, &photon_map_global, &photon_map_caustic, &ray, 0);
                     // }
                     // color = color * (1.0 / (SAMPLING_AMOUNT as f32));
                     let buf = color.to_buffer();

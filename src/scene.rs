@@ -69,11 +69,12 @@ impl Scene {
         return (total_diffuse_color, total_specular_color);
     }
 
-    fn global_illumination(&self, photon_map: &mut PhotonMap, hit_point: &Vector3, hit_normal: &Vector3) -> Color {
-        return photon_map.irradiance_estimate(hit_point, hit_normal);
+    fn global_illumination(&self, heap: &mut Heap, photon_map: &PhotonMap, hit_point: &Vector3, hit_normal: &Vector3) -> Color {
+        heap.reset();
+        return photon_map.irradiance_estimate(heap, hit_point, hit_normal);
     }
 
-    pub fn trace_ray(&self, photon_map_global: &mut PhotonMap, photon_map_caustic: &mut PhotonMap, ray: &Ray, depth: u8) -> Color {
+    pub fn trace_ray(&self, heap: &mut Heap, photon_map_global: &PhotonMap, photon_map_caustic: &PhotonMap, ray: &Ray, depth: u8) -> Color {
         if depth >= MAX_DEPTH {
             return Color::black();
         }
@@ -86,12 +87,12 @@ impl Scene {
 
                 if refractive_index == 0.0 {
                     let (direct_color, specular_color) = self.direct_illumination(&ray, &int, &material);
-                    let global_color = self.global_illumination(photon_map_global, &int.hit_point, &int.hit_normal);
-                    let caustic_color = self.global_illumination(photon_map_caustic, &int.hit_point, &int.hit_normal);
+                    let global_color = self.global_illumination(heap, photon_map_global, &int.hit_point, &int.hit_normal);
+                    let caustic_color = self.global_illumination(heap, photon_map_caustic, &int.hit_point, &int.hit_normal);
                     let reflected_color = if reflect_color.max() > 0.0 {
                         let reflect_dir = ray.direction.reflect(&int.hit_normal).normalized();
                         let reflect_ray = Ray::new(&int.hit_point + 0.0001 * reflect_dir, reflect_dir);
-                        reflect_color * self.trace_ray(photon_map_global, photon_map_caustic, &reflect_ray, depth + 1)
+                        reflect_color * self.trace_ray(heap, photon_map_global, photon_map_caustic, &reflect_ray, depth + 1)
                     } else {
                         Color::black()
                     };
@@ -117,7 +118,7 @@ impl Scene {
                             c = v.normalized().inner_product(&int.hit_normal);
                             t = v;
                         } else {
-                            return Color::white() * self.trace_ray(photon_map_global, photon_map_caustic, &reflect_ray, depth + 1);
+                            return Color::white() * self.trace_ray(heap, photon_map_global, photon_map_caustic, &reflect_ray, depth + 1);
                         }
                     }
 
@@ -125,8 +126,8 @@ impl Scene {
                     let r = r0 + (1.0 - r0) * (1.0 - c).powf(5.0);
                     let refract_ray = Ray::new(&int.hit_point + 0.0001 * t.normalized(), t.normalized());
 
-                    return Color::white() * (r * self.trace_ray(photon_map_global, photon_map_caustic, &reflect_ray, depth + 1)
-                                             + (1.0 - r) * self.trace_ray(photon_map_global, photon_map_caustic, &refract_ray, depth + 1));
+                    return Color::white() * (r * self.trace_ray(heap, photon_map_global, photon_map_caustic, &reflect_ray, depth + 1)
+                                             + (1.0 - r) * self.trace_ray(heap, photon_map_global, photon_map_caustic, &refract_ray, depth + 1));
                 }
             },
             None => Color::black(),
