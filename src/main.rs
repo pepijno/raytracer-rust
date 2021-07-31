@@ -2,11 +2,12 @@ extern crate rand_distr;
 extern crate rand;
 
 use std::io::Write;
-// use std::thread;
-use rand_distr::{Distribution, Uniform};
+use rand_distr::Uniform;
 use std::sync::Arc;
-// use std::sync::mpsc;
-// use std::sync::Mutex;
+use rayon::prelude::*;
+use std::cmp::Ordering;
+use std::sync::atomic::Ordering::Relaxed;
+use std::sync::atomic::AtomicU32;
 
 use rust_raytracer::vector3::*;
 use rust_raytracer::material::*;
@@ -16,10 +17,10 @@ use rust_raytracer::shape::*;
 use rust_raytracer::photonmap::*;
 
 // const THREAD_COUNT: i32 = 8;
-const SAMPLING_AMOUNT: i32 = 10;
+const SAMPLING_AMOUNT: u32 = 1;
 const PHOTON_MAP_N: usize = 400000;
 
-const SIZE: i32 = 150;
+const SIZE: i32 = 600;
 const ASPECT_RATIO: f32 = 1.66;
 const HEIGHT: u32 = (2 * SIZE) as u32;
 const WIDTH: u32 = (2.0 * ASPECT_RATIO * (SIZE as f32)) as u32;
@@ -40,7 +41,7 @@ fn create_scene() -> Scene {
     let ivory3 = Material {
         refractive_index: 0.0,
         diffuse_color: Color::new(0.3, 0.7, 0.7),
-        reflect_color: Color::new(0.3, 0.7, 0.7) * 0.1,
+        reflect_color: Color::new(0.3, 0.7, 0.7) * 0.2,
         specular_exponent: 50.0,
     };
     let glass = Material {
@@ -82,7 +83,7 @@ fn create_scene() -> Scene {
 
 fn create_camera() -> Camera {
     let origin = Vector3::new(4.0, 1.0, 2.0);
-    let look_at = Vector3::new(3.0, 0.0, -2.0);
+    let look_at = Vector3::new(-1.0, 0.0, -2.0);
     let vup = Vector3::new(0.0, -1.0, 0.0);
     let focus_distance = (origin - look_at).length_squared().sqrt();
     let field_of_view = 90.0;
@@ -91,6 +92,8 @@ fn create_camera() -> Camera {
 }
 
 fn main() {
+    rayon::ThreadPoolBuilder::new().num_threads(8).build_global().unwrap();
+
     let mut file = std::fs::File::create("image.ppm").expect("create failed");
 
     file.write_all(format!("P6\n{} {}\n255\n", WIDTH, HEIGHT).as_bytes()).expect("write failed");
@@ -100,99 +103,61 @@ fn main() {
 
     println!("Calculating Photon map...");
 
-    // let photon_map: Arc<Mutex<Vec<Photon>>> = Arc::new(Mutex::new(Vec::new()));
-    // let mut handles = vec![];
     let mut photon_map_global = PhotonMap::new();
     let mut photon_map_caustic = PhotonMap::new();
 
-    // for id in 0..THREAD_COUNT {
-    //     let photon_map = photon_map.clone();
-    //     let scene = scene.clone();
-    //     let handle = thread::spawn(move || {
+    for _ in 0..PHOTON_MAP_N {
+        let (ray, color) = scene.random_photon_ray(PHOTON_MAP_N);
+        scene.trace_photon(&mut photon_map_global, &mut photon_map_caustic, &ray, color, 0, BounceType::NONE);
+    }
 
-            for _ in 0..PHOTON_MAP_N {
-                // let mut photons_m = &mut photon_map.lock().unwrap();
-                // if photon_map.stored_photons >= PHOTON_MAP_N {
-                //     break;
-                // }
-                let (ray, color) = scene.random_photon_ray(PHOTON_MAP_N);
-                scene.trace_photon(&mut photon_map_global, &mut photon_map_caustic, &ray, color, 0, BounceType::NONE);
-            }
-    //     });
-    //     handles.push(handle);
-    // }
-    // for i in handles {
-    //     i.join().unwrap();
-    // }
-    // println!("Balancing...");
-    //         photon_map.balance();
+    println!("Balancing...");
     photon_map_global.init_balance();
     photon_map_caustic.init_balance();
     // photon_map_global.scale_photon_power(10000.0 / (PHOTON_MAP_N as f32));
     // photon_map_caustic.scale_photon_power(10000.0 / (PHOTON_MAP_N as f32));
     println!("Photon map calculated! Size: global: {}, caustic: {}", photon_map_global.stored_photons, photon_map_caustic.stored_photons);
-    // println!("{}", photon_map);
-    // let mut heap = vec![ Neighbor { distance_squared: 0.0, index: 0 }; 50];
-    // photon_map.lookup(&mut heap, &Vector3::new(1.0, -1.0, 2.0), &Vector3::new(0.0, 1.0, 0.0), 0, photon_map.stored_photons, 1000000.0, 0);
-    // println!("{:?}", heap);
-    // return;
 
-    // let mut colors = vec!(vec!(Color::black(); WIDTH as usize); HEIGHT as usize);
-
-//     let (tx, rx) = mpsc::channel();
-//     handles = vec![];
-
-//     for id in 0..THREAD_COUNT {
-//         let tx1 = mpsc::Sender::clone(&tx);
-//         let scene = scene.clone();
-//         let handle = thread::spawn(move || {
+    let counter = AtomicU32::new(0);
+    let ys = (0..HEIGHT).collect::<Vec<u32>>();
+    let mut result = ys.par_iter()
+        .map(|y| {
+            let mut heap = Heap::new();
             let between = Uniform::new(-0.5, 0.5);
             let mut rng = rand::thread_rng();
-            let mut heap = Heap::new();
+            let xs = (0..WIDTH).collect::<Vec<u32>>();
+            let colors = xs.into_iter()
+                .map(|x| {
+                    let samples = (0..SAMPLING_AMOUNT).collect::<Vec<u32>>();
+                    samples.into_iter()
+                        .map(|_| {
+                            // let ra = between.sample(&mut rng);
+                            // let rb = between.sample(&mut rng);
+                            let ra = 0.0;
+                            let rb = 0.0;
+                            let a = (x as f32 + ra)/(WIDTH as f32);
+                            let b = (*y as f32 + rb)/(HEIGHT as f32);
+                            let ray = camera.create_ray(false, a, b);
+                            scene.trace_ray(&mut heap, &photon_map_global, &photon_map_caustic, &ray, 0)
+                        })
+                        .reduce(|a, b| a + b).unwrap() * (1.0 / (SAMPLING_AMOUNT as f32))
+                })
+                .collect::<Vec<_>>();
 
-            for y in 0..HEIGHT {
-            // for y in (id..(HEIGHT as i32)).step_by(THREAD_COUNT as usize) {
-                println!("{}", y);
-                for x in 0..WIDTH {
-                    let mut color = Color::black();
-                    // for _ in 0..SAMPLING_AMOUNT {
-                    //     let ra = between.sample(&mut rng);
-                    //     let rb = between.sample(&mut rng);
-                    //     let a = (x as f32 + ra)/(WIDTH as f32);
-                    //     let b = (y as f32 + rb)/(HEIGHT as f32);
-                        let a = (x as f32)/(WIDTH as f32);
-                        let b = (y as f32)/(HEIGHT as f32);
-                        let ray = camera.create_ray(false, a, b);
-                        color = color + &scene.trace_ray(&mut heap, &photon_map_global, &photon_map_caustic, &ray, 0);
-                    // }
-                    // color = color * (1.0 / (SAMPLING_AMOUNT as f32));
-                    let buf = color.to_buffer();
-                    file.write_all(&buf).expect("write failed");
-                    // tx1.send((x, y, color));
-                }
-            }
-        // });
-        // handles.push(handle);
-    // }
+            let c = counter.load(Relaxed) + 1;
+            counter.store(c, Relaxed);
+            println!("{:.2}%", 100.0 * (c as f32) / (HEIGHT as f32));
 
-    // for i in handles {
-        // i.join().unwrap();
-    // }
+            (y, colors)
+        })
+        .collect::<Vec<_>>();
 
-    // let mut counter = 0;
-    // for (x, z, color) in &rx {
-    //     counter += 1;
-    //     colors[z as usize][x as usize] = color;
-    //     if counter >= WIDTH * HEIGHT {
-    //         break;
-    //     }
-    // }
+    result.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(Ordering::Equal));
 
-    // for z in 0..HEIGHT {
-    //     for x in 0..WIDTH {
-    //         let color = colors[z as usize][x as usize];
-    //         let buf = color.to_buffer();
-    //         file.write_all(&buf).expect("write failed");
-    //     }
-    // }
+    for (_, colors) in result {
+        for color in colors {
+            let buf = color.to_buffer();
+            file.write_all(&buf).expect("write failed");
+        }
+    }
 }
