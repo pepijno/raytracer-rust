@@ -20,13 +20,70 @@ pub struct Neighbor {
 }
 
 #[derive(Debug)]
-struct NearestPhotons {
-    max: u32,
-    found: u32,
-    got_heap: bool,
-    position: Vector3,
-    distance: Vec<f32>,
-    indices: Vec<usize>,
+pub struct Heap {
+    items: [Neighbor; N_PHOTON_RADIANCE],
+    size: usize,
+    max_distance_squared: f32,
+}
+
+impl Heap {
+    fn heap_add(&mut self, size: usize, index: usize, distance_squared: f32) -> usize {
+        let mut i = size;
+        self.items[i].index = index;
+        self.items[i].distance_squared = distance_squared;
+        let new_size = size + 1;
+
+        loop {
+            if i == 0 {
+                return new_size;
+            }
+            let parent = (i - 1) / 2;
+            let i_val = self.items[i].distance_squared;
+            let parent_val = self.items[parent].distance_squared;
+            if parent_val >= i_val {
+                return new_size;
+            }
+
+            self.items.swap(i, parent);
+            i = parent;
+        }
+    }
+
+    fn heap_remove(&mut self, size: usize) -> usize {
+        self.items[0].index = self.items[size - 1].index;
+        self.items[0].distance_squared = self.items[size - 1].distance_squared;
+        let new_size = size - 1;
+
+        let mut i = 0;
+
+        loop {
+            let left = 2 * i + 1;
+            let right = 2 * i + 2;
+            if left >= new_size && right >= new_size {
+                return new_size;
+            }
+
+            let i_val = self.items[i].distance_squared;
+            let left_val = if left < new_size { self.items[left].distance_squared } else { -1.0 };
+            let right_val = if right < new_size { self.items[right].distance_squared } else { -1.0 };
+
+            if i_val >= left_val && i_val >= right_val {
+                return new_size;
+            }
+
+            if left_val == -1.0 && right_val != -1.0 {
+                self.items.swap(i, right);
+                i = right;
+            } else if left_val != -1.0 && right_val == -1.0 {
+                self.items.swap(i, left);
+                i = right;
+            } else {
+                let bigger = if left_val > right_val { left } else { right };
+                self.items.swap(i, bigger);
+                i = bigger;
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -173,8 +230,7 @@ impl PhotonMap {
     }
 
     fn add_neighbor(&mut self, position: &Vector3, normal: &Vector3, index: usize, distance: f32, size: usize) -> (f32, usize) {
-        let dist = (position - self.photons[index].position).length_squared();
-        if (position - self.photons[index].position).normalized().inner_product(normal).abs() > 0.033 || dist > self.max_distance * self.max_distance {
+        if (position - self.photons[index].position).normalized().inner_product(normal).abs() > 0.033 {
             return (distance, size);
         }
 
