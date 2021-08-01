@@ -3,7 +3,7 @@ use crate::material::Color;
 use core::f32::consts::PI;
 use std::cmp::Ordering;
 
-const N_PHOTON_RADIANCE: usize = 200;
+const N_PHOTON_RADIANCE: usize = 400;
 
 #[derive(Debug, Copy, Clone)]
 enum Flag {

@@ -163,7 +163,9 @@ impl Scene {
                 let mut bounce = BounceType::NONE;
                 let mut rng = rand::thread_rng();
                 if refractive_index == 0.0 {
-                    let (p_diffuse, p_specular) = (reflect_probability(&diffuse_color, &color), reflect_probability(&reflect_color, &color));
+                    let p_reflect = (diffuse_color + reflect_color).max();
+                    let p_diffuse = diffuse_color.sum() / (diffuse_color.sum() + reflect_color.sum()) * p_reflect;
+                    let p_specular = reflect_color.sum() / (diffuse_color.sum() + reflect_color.sum()) * p_reflect;
 
                     let mut absorb = false;
                     let mut reflected_photon_color = Color::black();
