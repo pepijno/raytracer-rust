@@ -2,33 +2,12 @@ use crate::material::Material;
 use crate::ray::Ray;
 use crate::vector3::Vector3;
 use std::cmp::Ordering;
-use std::fmt;
 
 #[derive(Default)]
 pub struct Intersection {
     pub t: f32,
     pub hit_point: Vector3,
     pub hit_normal: Vector3,
-}
-
-impl Intersection {
-    pub fn new(t: f32, hit_point: Vector3, hit_normal: Vector3) -> Self {
-        Intersection {
-            t,
-            hit_point,
-            hit_normal,
-        }
-    }
-}
-
-impl fmt::Display for Intersection {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Intersection({}, {}, {})",
-            self.t, self.hit_point, self.hit_normal
-        )
-    }
 }
 
 #[derive(Clone)]
@@ -77,13 +56,16 @@ fn intersect_plane(origin: &Vector3, normal: &Vector3, ray: &Ray) -> Option<Inte
         direction: ray_direction,
     } = ray;
     let denominator = normal.inner_product(&ray_direction);
+    // denominator is small, ray is parallel to plane
     if denominator.abs() < 1e-4 {
         return None;
     }
+
     let plane = origin - ray_origin;
     let t = plane.inner_product(normal) / denominator;
 
-    if t < 1e-4 {
+    // t is less than 0, intersection is behind the ray origin
+    if t < 0.0 {
         return None;
     }
 
@@ -93,7 +75,11 @@ fn intersect_plane(origin: &Vector3, normal: &Vector3, ray: &Ray) -> Option<Inte
     } else {
         normal * -1.0
     };
-    return Some(Intersection::new(t, hit_point, hit_normal));
+    Some(Intersection {
+        t,
+        hit_point,
+        hit_normal,
+    })
 }
 
 fn intersect_sphere(origin: &Vector3, radius: f32, ray: &Ray) -> Option<Intersection> {
@@ -121,7 +107,11 @@ fn intersect_sphere(origin: &Vector3, radius: f32, ray: &Ray) -> Option<Intersec
     };
     let hit_point = ray_origin + ray_direction * t;
     let normal = (hit_point - origin).normalized();
-    return Some(Intersection::new(t, hit_point, normal));
+    Some(Intersection {
+        t,
+        hit_point,
+        hit_normal: normal,
+    })
 }
 
 fn intersect_triangle(p1: &Vector3, p2: &Vector3, p3: &Vector3, ray: &Ray) -> Option<Intersection> {
@@ -154,11 +144,11 @@ fn intersect_triangle(p1: &Vector3, p2: &Vector3, p3: &Vector3, ray: &Ray) -> Op
     }
 
     let hit_point = ray.origin + ray.direction * t;
-    return Some(Intersection::new(
+    Some(Intersection {
         t,
         hit_point,
-        n1.outer_product(&n2).normalized(),
-    ));
+        hit_normal: n1.outer_product(&n2).normalized(),
+    })
 }
 
 fn intersect_pyramid(
@@ -182,7 +172,7 @@ fn intersect_pyramid(
 
     hits.sort_by(|a, b| a.1.t.partial_cmp(&b.1.t).unwrap_or(Ordering::Equal));
 
-    return hits.first().map(|(&p, intersection)| {
+    hits.first().map(|(&p, intersection)| {
         let Intersection {
             t,
             hit_point,
@@ -196,8 +186,12 @@ fn intersect_pyramid(
         } else {
             *hit_normal
         };
-        Intersection::new(*t, *hit_point, normal)
-    });
+        Intersection {
+            t: *t,
+            hit_point: *hit_point,
+            hit_normal: normal,
+        }
+    })
 }
 
 impl Shape {

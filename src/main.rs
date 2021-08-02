@@ -110,25 +110,25 @@ fn create_scene() -> Scene {
         ),
     ];
 
-    return Scene::new(objects, lights);
+    Scene::new(objects, lights)
 }
 
 fn create_camera() -> Camera {
-    let origin = Vector3::new(7.0, 2.0, 5.0);
-    let look_at = Vector3::new(3.0, 0.0, 0.0);
-    let vup = Vector3::new(0.0, -1.0, 0.0);
+    let origin = &Vector3::new(7.0, 2.0, 5.0);
+    let look_at = &Vector3::new(3.0, 0.0, 0.0);
+    let vup = &Vector3::new(0.0, -1.0, 0.0);
     let focus_distance = (origin - look_at).length_squared().sqrt();
     let field_of_view = 90.0;
     let aperture = 0.8;
-    return Camera::new(
-        &origin,
+    Camera::new(
+        origin,
         look_at,
         vup,
         field_of_view,
         ASPECT_RATIO,
         aperture,
         focus_distance,
-    );
+    )
 }
 
 fn main() {
