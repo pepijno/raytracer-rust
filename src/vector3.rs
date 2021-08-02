@@ -1,9 +1,9 @@
 extern crate overload;
 use overload::overload;
-use std::ops;
-use std::fmt;
 use rand::prelude::*;
 use std::f32::consts::PI;
+use std::fmt;
+use std::ops;
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct Vector3 {
@@ -14,7 +14,7 @@ pub struct Vector3 {
 
 impl Vector3 {
     pub fn new(x: f32, y: f32, z: f32) -> Self {
-        Self { x: x, y: y, z: z }
+        Self { x, y, z }
     }
 
     pub fn inner_product(&self, other: &Self) -> f32 {
@@ -57,7 +57,11 @@ impl Vector3 {
         let eta = eta_i / eta_t;
         let k = 1.0 - eta * eta * (1.0 - cosi * cosi);
         if k < 0.0 {
-            Self { x: 0.0, y: 0.0, z: 0.0 }
+            Self {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            }
         } else {
             self * eta + n * (eta * cosi - k.sqrt())
         }
@@ -68,13 +72,13 @@ impl Vector3 {
             Vector3 {
                 x: self.z,
                 y: 0.0,
-                z: -self.x
+                z: -self.x,
             } / (self.x * self.x + self.z * self.z).sqrt()
         } else {
             Vector3 {
                 x: 0.0,
                 y: -self.z,
-                z: self.y
+                z: self.y,
             } / (self.y * self.y + self.z * self.z).sqrt()
         };
         let nb = self.outer_product(&nt);
@@ -85,7 +89,7 @@ impl Vector3 {
         match index {
             0 => self.x,
             1 => self.y,
-            _ => self.z
+            _ => self.z,
         }
     }
 
@@ -105,7 +109,7 @@ impl Vector3 {
                 x: self.x,
                 y: self.y,
                 z: new_value,
-            }
+            },
         }
     }
 
@@ -143,30 +147,22 @@ pub fn random_in_unit_disk() -> Vector3 {
 
 pub fn random_in_hemisphere() -> Vector3 {
     let mut rng = rand::thread_rng();
-    let r = rng.gen::<f32>();
-    let sin_theta = (1.0 - r * r).sqrt();
+    let y = rng.gen::<f32>();
+    let sin_theta = (1.0 - y * y).sqrt();
     let phi: f32 = (rng.gen::<f32>()) * 2.0 * PI;
     let x = sin_theta * phi.cos();
     let z = sin_theta * phi.sin();
-    Vector3 {
-        x: x,
-        y: r,
-        z: z
-    }
+    Vector3 { x, y, z }
 }
 
 pub fn random_in_sphere() -> Vector3 {
     let mut rng = rand::thread_rng();
-    let r = -1.0 + 2.0 * rng.gen::<f32>();
-    let sin_theta = (1.0 - r * r).sqrt();
+    let y = -1.0 + 2.0 * rng.gen::<f32>();
+    let sin_theta = (1.0 - y * y).sqrt();
     let phi: f32 = (rng.gen::<f32>()) * 2.0 * PI;
     let x = sin_theta * phi.cos();
     let z = sin_theta * phi.sin();
-    Vector3 {
-        x: x,
-        y: r,
-        z: z
-    }
+    Vector3 { x, y, z }
 }
 
 overload!((a: ?Vector3) + (b: ?Vector3) -> Vector3 { Vector3 { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z } });

@@ -1,8 +1,8 @@
-use crate::material::*;
+use crate::material::Material;
 use crate::ray::Ray;
 use crate::vector3::Vector3;
-use std::fmt;
 use std::cmp::Ordering;
+use std::fmt;
 
 #[derive(Default)]
 pub struct Intersection {
@@ -14,16 +14,20 @@ pub struct Intersection {
 impl Intersection {
     pub fn new(t: f32, hit_point: Vector3, hit_normal: Vector3) -> Self {
         Intersection {
-            t: t,
-            hit_point: hit_point,
-            hit_normal: hit_normal,
+            t,
+            hit_point,
+            hit_normal,
         }
     }
 }
 
 impl fmt::Display for Intersection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Intersection({}, {}, {})", self.t, self.hit_point, self.hit_normal)
+        write!(
+            f,
+            "Intersection({}, {}, {})",
+            self.t, self.hit_point, self.hit_normal
+        )
     }
 }
 
@@ -35,10 +39,7 @@ pub struct Object {
 
 impl Object {
     pub fn new(shape: Shape, material: Material) -> Self {
-        Object {
-            shape: shape,
-            material: material
-        }
+        Object { shape, material }
     }
 
     pub fn intersect_any(objects: &Vec<Object>, ray: &Ray) -> Option<(Material, Intersection)> {
@@ -71,7 +72,10 @@ pub enum Shape {
 }
 
 fn intersect_plane(origin: &Vector3, normal: &Vector3, ray: &Ray) -> Option<Intersection> {
-    let Ray { origin: ray_origin, direction: ray_direction } = ray;
+    let Ray {
+        origin: ray_origin,
+        direction: ray_direction,
+    } = ray;
     let denominator = normal.inner_product(&ray_direction);
     if denominator.abs() < 1e-4 {
         return None;
@@ -93,7 +97,10 @@ fn intersect_plane(origin: &Vector3, normal: &Vector3, ray: &Ray) -> Option<Inte
 }
 
 fn intersect_sphere(origin: &Vector3, radius: f32, ray: &Ray) -> Option<Intersection> {
-    let Ray { origin: ray_origin, direction: ray_direction } = ray;
+    let Ray {
+        origin: ray_origin,
+        direction: ray_direction,
+    } = ray;
     let v = origin - ray_origin;
 
     let tca = v.inner_product(&ray_direction);
@@ -147,29 +154,50 @@ fn intersect_triangle(p1: &Vector3, p2: &Vector3, p3: &Vector3, ray: &Ray) -> Op
     }
 
     let hit_point = ray.origin + ray.direction * t;
-    return Some(Intersection::new(t, hit_point, n1.outer_product(&n2).normalized()));
+    return Some(Intersection::new(
+        t,
+        hit_point,
+        n1.outer_product(&n2).normalized(),
+    ));
 }
 
-fn intersect_pyramid(p1: &Vector3, p2: &Vector3, p3: &Vector3, p4: &Vector3, ray: &Ray) -> Option<Intersection> {
-    let intersections = vec!((p4, intersect_triangle(p1, p2, p3, ray)), (p2, intersect_triangle(p1, p3, p4, ray)), (p1, intersect_triangle(p2, p4, p3, ray)), (p3, intersect_triangle(p1, p2, p4, ray)));
-    let mut hits: Vec<(&Vector3, Intersection)> = intersections.into_iter()
+fn intersect_pyramid(
+    p1: &Vector3,
+    p2: &Vector3,
+    p3: &Vector3,
+    p4: &Vector3,
+    ray: &Ray,
+) -> Option<Intersection> {
+    let intersections = vec![
+        (p4, intersect_triangle(p1, p2, p3, ray)),
+        (p2, intersect_triangle(p1, p3, p4, ray)),
+        (p1, intersect_triangle(p2, p4, p3, ray)),
+        (p3, intersect_triangle(p1, p2, p4, ray)),
+    ];
+    let mut hits: Vec<(&Vector3, Intersection)> = intersections
+        .into_iter()
         .filter(|x| x.1.is_some())
         .map(|x| (x.0, x.1.unwrap()))
         .collect();
 
     hits.sort_by(|a, b| a.1.t.partial_cmp(&b.1.t).unwrap_or(Ordering::Equal));
 
-    return hits.first()
-        .map(|(&p, intersection)| {
-            let Intersection { t, hit_point, hit_normal } = intersection;
-            let inner_dir = p - hit_point;
-            let normal = if ray.direction.inner_product(&inner_dir) < 0.0 && hit_normal.inner_product(&inner_dir) > 0.0 {
-                hit_normal * -1.0
-            } else {
-                *hit_normal
-            };
-            Intersection::new(*t, *hit_point, normal)
-        });
+    return hits.first().map(|(&p, intersection)| {
+        let Intersection {
+            t,
+            hit_point,
+            hit_normal,
+        } = intersection;
+        let inner_dir = p - hit_point;
+        let normal = if ray.direction.inner_product(&inner_dir) < 0.0
+            && hit_normal.inner_product(&inner_dir) > 0.0
+        {
+            hit_normal * -1.0
+        } else {
+            *hit_normal
+        };
+        Intersection::new(*t, *hit_point, normal)
+    });
 }
 
 impl Shape {
@@ -182,4 +210,3 @@ impl Shape {
         }
     }
 }
-

@@ -1,7 +1,7 @@
 extern crate overload;
 use overload::overload;
-use std::ops; // <- don't forget this or you'll get nasty errors
 use std::fmt;
+use std::ops; // <- don't forget this or you'll get nasty errors
 
 #[derive(Debug, Copy, Clone)]
 pub struct Color {
@@ -12,13 +12,23 @@ pub struct Color {
 
 impl Color {
     pub fn black() -> Self {
-        Self { r: 0.0, g: 0.0, b: 0.0 }
+        Self {
+            r: 0.0,
+            g: 0.0,
+            b: 0.0,
+        }
     }
+
     pub fn white() -> Self {
-        Self { r: 1.0, g: 1.0, b: 1.0 }
+        Self {
+            r: 1.0,
+            g: 1.0,
+            b: 1.0,
+        }
     }
+
     pub fn new(r: f32, g: f32, b: f32) -> Self {
-        Self { r: r, g: g, b: b }
+        Self { r, g, b }
     }
 
     pub fn max(&self) -> f32 {
@@ -38,11 +48,7 @@ impl Color {
     }
 
     pub fn to_buffer(&self) -> [u8; 3] {
-        [
-            self.r_byte(),
-            self.g_byte(),
-            self.b_byte(),
-        ]
+        [self.r_byte(), self.g_byte(), self.b_byte()]
     }
 
     pub fn r_byte(&self) -> u8 {

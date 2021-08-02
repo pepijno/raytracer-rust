@@ -1,5 +1,5 @@
-use crate::vector3::Vector3;
 use crate::material::Color;
+use crate::vector3::Vector3;
 use core::f32::consts::PI;
 use std::cmp::Ordering;
 
@@ -29,7 +29,10 @@ pub struct Heap {
 impl Heap {
     pub fn new() -> Self {
         Heap {
-            items: [Neighbor { distance_squared: 0.0, index: 0 }; N_PHOTON_RADIANCE],
+            items: [Neighbor {
+                distance_squared: 0.0,
+                index: 0,
+            }; N_PHOTON_RADIANCE],
             size: 0,
             max_distance_squared: 0.0,
         }
@@ -46,7 +49,6 @@ impl Heap {
         }
 
         self.heap_add(index, distance_squared);
-
         self.max_distance_squared = self.items[0].distance_squared;
     }
 
@@ -86,8 +88,16 @@ impl Heap {
             }
 
             let i_val = self.items[i].distance_squared;
-            let left_val = if left < self.size { self.items[left].distance_squared } else { -1.0 };
-            let right_val = if right < self.size { self.items[right].distance_squared } else { -1.0 };
+            let left_val = if left < self.size {
+                self.items[left].distance_squared
+            } else {
+                -1.0
+            };
+            let right_val = if right < self.size {
+                self.items[right].distance_squared
+            } else {
+                -1.0
+            };
 
             if i_val >= left_val && i_val >= right_val {
                 return;
@@ -182,17 +192,32 @@ impl PhotonMap {
 
         if max_var == var.x {
             let slice = &mut self.photons[begin..end];
-            slice.sort_by(|a, b| a.position.x.partial_cmp(&b.position.x).unwrap_or(Ordering::Equal));
+            slice.sort_by(|a, b| {
+                a.position
+                    .x
+                    .partial_cmp(&b.position.x)
+                    .unwrap_or(Ordering::Equal)
+            });
             self.photons[median].plane = Flag::XAxis;
         }
         if max_var == var.y {
             let slice = &mut self.photons[begin..end];
-            slice.sort_by(|a, b| a.position.y.partial_cmp(&b.position.y).unwrap_or(Ordering::Equal));
+            slice.sort_by(|a, b| {
+                a.position
+                    .y
+                    .partial_cmp(&b.position.y)
+                    .unwrap_or(Ordering::Equal)
+            });
             self.photons[median].plane = Flag::YAxis;
         }
         if max_var == var.z {
             let slice = &mut self.photons[begin..end];
-            slice.sort_by(|a, b| a.position.z.partial_cmp(&b.position.z).unwrap_or(Ordering::Equal));
+            slice.sort_by(|a, b| {
+                a.position
+                    .z
+                    .partial_cmp(&b.position.z)
+                    .unwrap_or(Ordering::Equal)
+            });
             self.photons[median].plane = Flag::ZAxis;
         }
 
@@ -201,7 +226,12 @@ impl PhotonMap {
         return;
     }
 
-    pub fn irradiance_estimate(&self, heap: &mut Heap, position: &Vector3, normal: &Vector3) -> Color {
+    pub fn irradiance_estimate(
+        &self,
+        heap: &mut Heap,
+        position: &Vector3,
+        normal: &Vector3,
+    ) -> Color {
         let mut result = Color::black();
         self.lookup(heap, position, normal, 0, self.stored_photons);
 
@@ -216,7 +246,14 @@ impl PhotonMap {
         return result * (1.0 / (heap.max_distance_squared * PI));
     }
 
-    fn lookup(&self, heap: &mut Heap, position: &Vector3, normal: &Vector3, begin: usize, end: usize) -> () {
+    fn lookup(
+        &self,
+        heap: &mut Heap,
+        position: &Vector3,
+        normal: &Vector3,
+        begin: usize,
+        end: usize,
+    ) -> () {
         if begin == end {
             return;
         }
@@ -232,7 +269,10 @@ impl PhotonMap {
         if position_value <= split_value {
             self.lookup(heap, position, normal, begin, median);
             self.add_neighbor(heap, position, normal, median);
-            if heap.size >= N_PHOTON_RADIANCE && (position_value - split_value) * (position_value - split_value) > heap.max_distance_squared {
+            if heap.size >= N_PHOTON_RADIANCE
+                && (position_value - split_value) * (position_value - split_value)
+                    > heap.max_distance_squared
+            {
                 return;
             }
 
@@ -240,7 +280,10 @@ impl PhotonMap {
         } else {
             self.lookup(heap, position, normal, median + 1, end);
             self.add_neighbor(heap, position, normal, median);
-            if heap.size >= N_PHOTON_RADIANCE && (position_value - split_value) * (position_value - split_value) > heap.max_distance_squared {
+            if heap.size >= N_PHOTON_RADIANCE
+                && (position_value - split_value) * (position_value - split_value)
+                    > heap.max_distance_squared
+            {
                 return;
             }
 
@@ -248,8 +291,19 @@ impl PhotonMap {
         }
     }
 
-    fn add_neighbor(&self, heap: &mut Heap, position: &Vector3, normal: &Vector3, index: usize) -> () {
-        if (position - self.photons[index].position).normalized().inner_product(normal).abs() > 0.033 {
+    fn add_neighbor(
+        &self,
+        heap: &mut Heap,
+        position: &Vector3,
+        normal: &Vector3,
+        index: usize,
+    ) -> () {
+        if (position - self.photons[index].position)
+            .normalized()
+            .inner_product(normal)
+            .abs()
+            > 0.033
+        {
             return;
         }
 
@@ -267,9 +321,9 @@ impl PhotonMap {
 
 fn position_value(position: &Vector3, axis: Flag) -> f32 {
     match axis {
-            Flag::XAxis => position.x,
-            Flag::YAxis => position.y,
-            Flag::ZAxis => position.z,
-            _ => 0.0,
+        Flag::XAxis => position.x,
+        Flag::YAxis => position.y,
+        Flag::ZAxis => position.z,
+        _ => 0.0,
     }
 }

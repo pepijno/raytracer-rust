@@ -1,6 +1,5 @@
-use crate::vector3::Vector3;
-use crate::vector3::random_in_unit_disk;
 use crate::ray::Ray;
+use crate::vector3::{Vector3, random_in_unit_disk};
 use std::f32::consts::PI;
 
 #[derive(Copy, Clone)]
@@ -15,7 +14,15 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(look_from: &Vector3, look_at: Vector3, vup: Vector3, vofv: f32, aspect: f32, aperture: f32, focus_distance: f32) -> Self {
+    pub fn new(
+        look_from: &Vector3,
+        look_at: Vector3,
+        vup: Vector3,
+        vofv: f32,
+        aspect: f32,
+        aperture: f32,
+        focus_distance: f32,
+    ) -> Self {
         let theta = vofv * PI / 180.0;
         let half_height = (theta / 2.0).tan();
         let half_width = aspect * half_height;
@@ -24,11 +31,14 @@ impl Camera {
         let v = w.outer_product(&u);
         Camera {
             origin: *look_from,
-            screen_dl: look_from - u * half_width * focus_distance - v * half_height * focus_distance - w * focus_distance,
+            screen_dl: look_from
+                - u * half_width * focus_distance
+                - v * half_height * focus_distance
+                - w * focus_distance,
             horizontal: u * 2.0 * half_width * focus_distance,
             vertical: v * 2.0 * half_height * focus_distance,
-            u: u,
-            v: v,
+            u,
+            v,
             lens_radius: aperture / 2.0,
         }
     }
@@ -38,9 +48,15 @@ impl Camera {
             let rd = random_in_unit_disk() * self.lens_radius;
             self.u * rd.x + self.v * rd.y
         } else {
-            Vector3 { x: 0.0, y: 0.0, z: 0.0 }
+            Vector3 {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            }
         };
-        let direction = (self.screen_dl + self.horizontal * x + self.vertical * z - self.origin - offset).normalized();
+        let direction =
+            (self.screen_dl + self.horizontal * x + self.vertical * z - self.origin - offset)
+                .normalized();
         Ray::new(self.origin + offset, direction)
     }
 }
