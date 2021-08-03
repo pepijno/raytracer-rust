@@ -2,7 +2,6 @@ extern crate overload;
 use overload::overload;
 use rand::prelude::*;
 use std::f32::consts::PI;
-use std::fmt;
 use std::ops;
 
 #[derive(Debug, Default, Copy, Clone)]
@@ -132,37 +131,37 @@ impl Vector3 {
     pub fn to_array(&self) -> [f32; 3] {
         [self.x, self.y, self.z]
     }
-}
 
-pub fn random_in_unit_disk() -> Vector3 {
-    let mut rng = rand::thread_rng();
-    let theta: f32 = (rng.gen::<f32>()) * 2.0 * PI;
-    let r: f32 = rng.gen();
-    Vector3 {
-        x: r * theta.cos(),
-        y: r * theta.sin(),
-        z: 0.0,
+    pub fn random_in_unit_disk() -> Self {
+        let mut rng = rand::thread_rng();
+        let theta: f32 = (rng.gen::<f32>()) * 2.0 * PI;
+        let r: f32 = rng.gen();
+        Self {
+            x: r * theta.cos(),
+            y: r * theta.sin(),
+            z: 0.0,
+        }
     }
-}
 
-pub fn random_in_hemisphere() -> Vector3 {
-    let mut rng = rand::thread_rng();
-    let y = rng.gen::<f32>();
-    let sin_theta = (1.0 - y * y).sqrt();
-    let phi: f32 = (rng.gen::<f32>()) * 2.0 * PI;
-    let x = sin_theta * phi.cos();
-    let z = sin_theta * phi.sin();
-    Vector3 { x, y, z }
-}
+    pub fn random_in_hemisphere() -> Self {
+        let mut rng = rand::thread_rng();
+        let y = rng.gen::<f32>();
+        let sin_theta = (1.0 - y * y).sqrt();
+        let phi: f32 = (rng.gen::<f32>()) * 2.0 * PI;
+        let x = sin_theta * phi.cos();
+        let z = sin_theta * phi.sin();
+        Self { x, y, z }
+    }
 
-pub fn random_in_sphere() -> Vector3 {
-    let mut rng = rand::thread_rng();
-    let y = -1.0 + 2.0 * rng.gen::<f32>();
-    let sin_theta = (1.0 - y * y).sqrt();
-    let phi: f32 = (rng.gen::<f32>()) * 2.0 * PI;
-    let x = sin_theta * phi.cos();
-    let z = sin_theta * phi.sin();
-    Vector3 { x, y, z }
+    pub fn random_in_sphere() -> Self {
+        let mut rng = rand::thread_rng();
+        let y = -1.0 + 2.0 * rng.gen::<f32>();
+        let sin_theta = (1.0 - y * y).sqrt();
+        let phi: f32 = (rng.gen::<f32>()) * 2.0 * PI;
+        let x = sin_theta * phi.cos();
+        let z = sin_theta * phi.sin();
+        Self { x, y, z }
+    }
 }
 
 overload!((a: ?Vector3) + (b: ?Vector3) -> Vector3 { Vector3 { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z } });
@@ -175,9 +174,3 @@ overload!((a: &mut Vector3) += (b: ?Vector3) { a.x += b.x; a.y += b.y; a.z += b.
 overload!((a: &mut Vector3) -= (b: ?Vector3) { a.x -= b.x; a.y -= b.y; a.z -= b.z; });
 overload!((a: &mut Vector3) *= (b: f32) { a.x *= b; a.y *= b; a.z *= b; });
 overload!((a: &mut Vector3) /= (b: f32) { a.x /= b; a.y /= b; a.z /= b; });
-
-impl fmt::Display for Vector3 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({}, {}, {})", self.x, self.y, self.z)
-    }
-}

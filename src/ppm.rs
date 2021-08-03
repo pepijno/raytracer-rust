@@ -9,7 +9,7 @@ pub struct PPM {
 }
 
 impl PPM {
-    pub fn new(file_name: &String, height: usize, width: usize) -> Self {
+    pub fn new(file_name: &String, width: usize, height: usize) -> Self {
         PPM {
             file_name: file_name.to_string(),
             height,

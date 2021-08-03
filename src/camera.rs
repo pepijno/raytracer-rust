@@ -1,5 +1,5 @@
 use crate::ray::Ray;
-use crate::vector3::{Vector3, random_in_unit_disk};
+use crate::vector3::Vector3;
 use std::f32::consts::PI;
 
 #[derive(Copy, Clone)]
@@ -45,7 +45,7 @@ impl Camera {
 
     pub fn create_ray(&self, with_lens_focus: bool, x: f32, z: f32) -> Ray {
         let offset = if with_lens_focus {
-            let rd = random_in_unit_disk() * self.lens_radius;
+            let rd = Vector3::random_in_unit_disk() * self.lens_radius;
             self.u * rd.x + self.v * rd.y
         } else {
             Vector3 {
@@ -57,6 +57,9 @@ impl Camera {
         let direction =
             (self.screen_dl + self.horizontal * x + self.vertical * z - self.origin - offset)
                 .normalized();
-        Ray::new(self.origin + offset, direction)
+        Ray {
+            origin: self.origin + offset,
+            direction,
+        }
     }
 }

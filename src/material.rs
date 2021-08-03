@@ -1,13 +1,12 @@
 extern crate overload;
 use overload::overload;
-use std::fmt;
 use std::ops; // <- don't forget this or you'll get nasty errors
 
 #[derive(Debug, Copy, Clone)]
 pub struct Color {
-    pub r: f32,
-    pub g: f32,
-    pub b: f32,
+    r: f32,
+    g: f32,
+    b: f32,
 }
 
 impl Color {
@@ -61,12 +60,6 @@ impl Color {
 
     pub fn b_byte(&self) -> u8 {
         ((self.b * 255.0).min(255.0)).max(0.0) as u8
-    }
-}
-
-impl fmt::Display for Color {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "(R:{}, G:{}, B:{})", self.r, self.g, self.b)
     }
 }
 

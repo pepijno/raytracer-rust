@@ -1,32 +1,14 @@
 use crate::material::{Color, Material};
+use crate::objects::{Light, Object};
 use crate::photonmap::{Heap, PhotonMap};
-use crate::ray::Ray;
-use crate::shape::{Intersection, Object};
-use crate::vector3::{random_in_hemisphere, random_in_sphere, Vector3};
+use crate::ray::{Intersection, Ray};
+use crate::vector3::Vector3;
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
 
 const MAX_DEPTH: u8 = 6;
 // const N_SHADOW_RAY: u8 = 5;
 
-#[derive(Clone)]
-pub struct Light {
-    position: Vector3,
-    color: Color,
-    intensity: f32,
-}
-
-impl Light {
-    pub fn new(position: &Vector3, color: Color, intensity: f32) -> Self {
-        Light {
-            position: *position,
-            color,
-            intensity,
-        }
-    }
-}
-
-#[derive(Clone)]
 pub struct Scene {
     objects: Vec<Object>,
     lights: Vec<Light>,
@@ -61,11 +43,9 @@ impl Scene {
         } in &self.lights
         {
             let light_dir = (position - intersection.hit_point).normalized();
-            let int = Object::intersect_any(
-                &self.objects,
-                &Ray::new(intersection.hit_point + light_dir * 0.0001, light_dir),
-            );
-            if let Some((_, i)) = int {
+            let r = Ray::new(intersection.hit_point, light_dir);
+            let int = r.intersect_any(&self.objects);
+            if let Some(i) = int {
                 if (i.hit_point - intersection.hit_point).length_squared()
                     < (position - intersection.hit_point).length_squared()
                 {
@@ -110,20 +90,20 @@ impl Scene {
             return Color::black();
         }
 
-        let intersection = Object::intersect_any(&self.objects, ray);
+        let intersection = ray.intersect_any(&self.objects);
 
         match intersection {
-            Some((material, int)) => {
+            Some(int) => {
                 let Material {
                     refractive_index,
                     diffuse_color,
                     reflect_color,
                     specular_exponent: _,
-                } = material;
+                } = int.material;
 
                 if refractive_index == 0.0 {
                     let (direct_color, specular_color) =
-                        self.direct_illumination(&ray, &int, &material);
+                        self.direct_illumination(&ray, &int, &int.material);
                     let global_color = self.global_illumination(
                         heap,
                         photon_map_global,
@@ -137,9 +117,7 @@ impl Scene {
                         &int.hit_normal,
                     );
                     let reflected_color = if reflect_color.max() > 0.0 {
-                        let reflect_dir = ray.direction.reflect(&int.hit_normal).normalized();
-                        let reflect_ray =
-                            Ray::new(&int.hit_point + 0.0001 * reflect_dir, reflect_dir);
+                        let reflect_ray = ray.reflect(int.hit_point, int.hit_normal);
                         reflect_color
                             * self.trace_ray(
                                 heap,
@@ -156,8 +134,7 @@ impl Scene {
                         + specular_color
                         + diffuse_color * (global_color + caustic_color);
                 } else {
-                    let reflect_dir = ray.direction.reflect(&int.hit_normal).normalized();
-                    let reflect_ray = Ray::new(&int.hit_point + 0.0001 * reflect_dir, reflect_dir);
+                    let reflect_ray = ray.reflect(int.hit_point, int.hit_normal);
 
                     let nt: f32;
                     let c: f32;
@@ -189,8 +166,10 @@ impl Scene {
 
                     let r0 = ((nt - 1.0) / (nt + 1.0)).powf(2.0);
                     let r = r0 + (1.0 - r0) * (1.0 - c).powf(5.0);
-                    let refract_ray =
-                        Ray::new(&int.hit_point + 0.0001 * t.normalized(), t.normalized());
+                    let refract_ray = Ray {
+                        origin: &int.hit_point + 0.0001 * t.normalized(),
+                        direction: t.normalized(),
+                    };
 
                     return Color::white()
                         * (r * self.trace_ray(
@@ -221,10 +200,8 @@ impl Scene {
         let index = dist.sample(&mut rng);
         let light = &self.lights[index];
 
-        let dir = random_in_sphere();
-
         (
-            Ray::new(light.position, dir),
+            Ray::random_ray(light.position),
             light.intensity * light.color / (n_photons as f32),
         )
     }
@@ -242,16 +219,16 @@ impl Scene {
             return;
         }
 
-        let intersection = Object::intersect_any(&self.objects, ray);
+        let intersection = ray.intersect_any(&self.objects);
 
         match intersection {
-            Some((material, int)) => {
+            Some(int) => {
                 let Material {
                     refractive_index,
                     diffuse_color,
                     reflect_color,
                     specular_exponent: _,
-                } = material;
+                } = int.material;
 
                 let mut bounce = BounceType::NONE;
                 let mut rng = rand::thread_rng();
@@ -266,31 +243,18 @@ impl Scene {
 
                     let mut absorb = false;
                     let mut reflected_photon_color = Color::black();
-                    let mut reflect_ray =
-                        Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 0.0, 0.0));
+                    let mut reflect_ray = Ray {
+                        origin: Vector3::new(0.0, 0.0, 0.0),
+                        direction: Vector3::new(0.0, 0.0, 0.0),
+                    };
                     let r = rng.gen::<f32>();
 
                     if r >= 0.0 && r < p_diffuse {
-                        let random_vector = random_in_hemisphere();
-                        let (nx, ny, nz) = int.hit_normal.create_coord_system();
-                        let adjusted_vector = Vector3 {
-                            x: random_vector.x * nz.x
-                                + random_vector.y * nx.x
-                                + random_vector.z * ny.x,
-                            y: random_vector.x * nz.y
-                                + random_vector.y * nx.y
-                                + random_vector.z * ny.y,
-                            z: random_vector.x * nz.z
-                                + random_vector.y * nx.z
-                                + random_vector.z * ny.z,
-                        };
-                        reflect_ray =
-                            Ray::new(&int.hit_point + 0.0001 * adjusted_vector, adjusted_vector);
+                        reflect_ray = Ray::random_ray_in_hemisphere(int.hit_point, int.hit_normal);
                         reflected_photon_color = color * diffuse_color / p_diffuse;
                         bounce = BounceType::DIFFUSE;
                     } else if r >= p_diffuse && r < (p_diffuse + p_specular) {
-                        let reflect_dir = ray.direction.reflect(&int.hit_normal).normalized();
-                        reflect_ray = Ray::new(&int.hit_point + 0.0001 * reflect_dir, reflect_dir);
+                        reflect_ray = ray.reflect(int.hit_point, int.hit_normal);
                         reflected_photon_color = color * reflect_color / p_specular;
                         bounce = BounceType::SPECULAR;
                     }
@@ -328,8 +292,7 @@ impl Scene {
                         );
                     }
                 } else {
-                    let reflect_dir = ray.direction.reflect(&int.hit_normal).normalized();
-                    let reflect_ray = Ray::new(&int.hit_point + 0.0001 * reflect_dir, reflect_dir);
+                    let reflect_ray = ray.reflect(int.hit_point, int.hit_normal);
 
                     let n: f32;
                     let nt: f32;
@@ -362,8 +325,10 @@ impl Scene {
 
                     let r0 = ((nt - 1.0) / (nt + 1.0)).powf(2.0);
                     let r = r0 + (1.0 - r0) * (1.0 - c).powf(5.0);
-                    let refract_ray =
-                        Ray::new(&int.hit_point + 0.0001 * t.normalized(), t.normalized());
+                    let refract_ray = Ray {
+                        origin: &int.hit_point + 0.0001 * t.normalized(),
+                        direction: t.normalized(),
+                    };
 
                     if rng.gen::<f32>() < r {
                         return self.trace_photon(

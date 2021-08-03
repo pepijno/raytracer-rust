@@ -7,17 +7,17 @@ use rust_raytracer::camera::Camera;
 use rust_raytracer::material::{Color, Material};
 use rust_raytracer::photonmap::{Heap, PhotonMap};
 use rust_raytracer::ppm::PPM;
-use rust_raytracer::scene::{BounceType, Light, Scene};
-use rust_raytracer::shape::{Object, Shape};
+use rust_raytracer::scene::{BounceType, Scene};
+use rust_raytracer::objects::{Object, Shape, Light};
 use rust_raytracer::vector3::Vector3;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering::Relaxed;
 
 const THREAD_COUNT: usize = 8;
-const SAMPLING_AMOUNT: usize = 100;
+const SAMPLING_AMOUNT: usize = 1;
 const NUMBER_OF_PHOTONS: usize = 800000;
 
-const SIZE: usize = 600;
+const SIZE: usize = 150;
 const ASPECT_RATIO: f32 = 1.66;
 const HEIGHT: usize = 2 * SIZE;
 const WIDTH: usize = (2.0 * ASPECT_RATIO * (SIZE as f32)) as usize;
@@ -61,53 +61,53 @@ fn create_scene() -> Scene {
     };
 
     let objects: Vec<Object> = vec![
-        Object::new(
-            Shape::Pyramid(
+        Object {
+            shape: Shape::pyramid(
                 Vector3::new(5.0, -0.999, -1.0),
                 Vector3::new(3.0, -0.999, -4.0),
                 Vector3::new(3.0, 2.0, -2.3),
                 Vector3::new(1.0, -0.999, -1.0),
             ),
-            glass,
-        ),
-        // Object::new(Shape::Triangle(Vector3::new(4.0, 0.0, -2.0), Vector3::new(3.5, 0.0, -3.0), Vector3::new(3.5, 1.0, -2.5)), ivory),
-        // Object::new(Shape::Triangle(Vector3::new(3.5, 0.0, -3.0), Vector3::new(3.5, 1.0, -2.5), Vector3::new(3.0, 0.0, -2.0)), ivory),
-        // Object::new(Shape::Triangle(Vector3::new(4.0, 0.0, -2.0), Vector3::new(3.5, 0.0, -3.0), Vector3::new(3.0, 0.0, -2.0)), ivory),
-        Object::new(Shape::Sphere(Vector3::new(-1.0, 0.0, -2.0), 1.0), ivory),
-        // Object::new(Shape::Sphere(Vector3::new(1.0, 0.0, -2.0), 1.0), ivory2),
-        // Object::new(Shape::Sphere(Vector3::new(2.0, 0.0, -6.0), 1.0), ivory2),
-        Object::new(Shape::Sphere(Vector3::new(3.0, 0.0, 0.0), 1.0), glass),
-        // Object::new(Shape::Sphere(Vector3::new(-2.0, 2.0, -6.0), 3.0), mirror),
-        Object::new(
-            Shape::Plane(Vector3::new(0.0, -1.0, 0.0), Vector3::new(0.0, 1.0, 0.0)),
-            rubber,
-        ),
-        // Object::new(Shape::Plane(Vector3::new(-6.0, -1.0, 0.0), Vector3::new(1.0, 0.0, 0.0)), ivory3),
-        Object::new(
-            Shape::Pyramid(
+            material: glass,
+        },
+        Object {
+            shape: Shape::sphere(Vector3::new(-1.0, 0.0, -2.0), 1.0),
+            material: ivory,
+        },
+        Object {
+            shape: Shape::sphere(Vector3::new(3.0, 0.0, 0.0), 1.0),
+            material: glass,
+        },
+        Object {
+            shape: Shape::plane(Vector3::new(0.0, -1.0, 0.0), Vector3::new(0.0, 1.0, 0.0)),
+            material: rubber,
+        },
+        Object {
+            shape: Shape::pyramid(
                 Vector3::new(10.0, -0.999, -8.0),
                 Vector3::new(3.5, 12.0, -8.0),
                 Vector3::new(-3.0, -0.999, -8.0),
                 Vector3::new(3.5, -0.999, -15.0),
             ),
-            ivory,
-        ),
-        // Object::new(Shape::Triangle(Vector3::new(10.0, -1.0, -8.0), Vector3::new(3.5, 12.0, -8.0), Vector3::new(-3.0, -1.0, -8.0)), ivory),
-        // Object::new(Shape::Plane(Vector3::new(6.0, -1.0, -8.0), Vector3::new(0.0, 0.0, 1.0)), ivory),
-        Object::new(Shape::Sphere(Vector3::new(-5.0, 1.0, 3.0), 2.0), ivory3),
+            material: ivory,
+        },
+        Object {
+            shape: Shape::sphere(Vector3::new(-5.0, 1.0, 3.0), 2.0),
+            material: ivory3,
+        },
     ];
 
     let lights = vec![
-        Light::new(
-            &Vector3::new(5.0, 10.0, -4.0),
-            Color::new(1.0, 1.0, 1.0),
-            5000.0,
-        ),
-        Light::new(
-            &Vector3::new(-4.0, 12.0, 3.0),
-            Color::new(1.0, 1.0, 1.0),
-            5000.0,
-        ),
+        Light {
+            position: Vector3::new(5.0, 10.0, -4.0),
+            color: Color::new(1.0, 1.0, 1.0),
+            intensity: 5000.0,
+        },
+        Light {
+            position: Vector3::new(-4.0, 12.0, 3.0),
+            color: Color::new(1.0, 1.0, 1.0),
+            intensity: 5000.0,
+        },
     ];
 
     Scene::new(objects, lights)
@@ -195,7 +195,7 @@ fn main() {
                             };
                             let a = (x as f32 + ra) / (WIDTH as f32);
                             let b = (*y as f32 + rb) / (HEIGHT as f32);
-                            let ray = camera.create_ray(true, a, b);
+                            let ray = camera.create_ray(false, a, b);
                             scene.trace_ray(
                                 &mut heap,
                                 &photon_map_global,
