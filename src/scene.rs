@@ -1,13 +1,15 @@
 use crate::material::{Color, Material};
 use crate::objects::{Light, Object};
-use crate::photonmap::{Heap, PhotonMap};
 use crate::ray::{Intersection, Ray};
 use crate::vector3::Vector3;
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
+use kdtree::KdTree;
+use kdtree::distance::squared_euclidean;
+use core::f32::consts::PI;
 
 const MAX_DEPTH: u8 = 6;
-// const N_SHADOW_RAY: u8 = 5;
+const N_PHOTON_RADIANCE: usize = 400;
 
 pub struct Scene {
     objects: Vec<Object>,
@@ -19,6 +21,13 @@ pub enum BounceType {
     NONE,
     DIFFUSE,
     SPECULAR,
+}
+
+#[derive(Debug)]
+pub struct Photon {
+    position: Vector3,
+    direction: Vector3,
+    power: Color,
 }
 
 impl Scene {
@@ -55,11 +64,11 @@ impl Scene {
             // do something with attenuation
             total_diffuse_color += color
                 * material.diffuse_color
-                * intersection.hit_normal.inner_product(&light_dir).max(0.0);
+                * intersection.hit_normal.inner_product(light_dir).max(0.0);
             total_specular_color += color
                 * (-(light_dir * -1.0)
-                    .reflect(&intersection.hit_normal)
-                    .inner_product(&ray.direction))
+                    .reflect(intersection.hit_normal)
+                    .inner_product(ray.direction))
                 .max(0.0)
                 .powf(material.specular_exponent);
         }
@@ -69,20 +78,34 @@ impl Scene {
 
     fn global_illumination(
         &self,
-        heap: &mut Heap,
-        photon_map: &PhotonMap,
-        hit_point: &Vector3,
-        hit_normal: &Vector3,
+        photon_map: &KdTree<f32, Photon, [f32; 3]>,
+        hit_point: Vector3,
+        hit_normal: Vector3,
     ) -> Color {
-        heap.reset();
-        return photon_map.irradiance_estimate(heap, hit_point, hit_normal);
+        let mut result = Color::black();
+        let res = photon_map.nearest(&hit_point.to_array(), N_PHOTON_RADIANCE, &squared_euclidean).unwrap();
+
+        if res.len() == 0 {
+            return result;
+        }
+        let mut max_distance_squared = 0.0;
+        for i in 0..res.len() {
+            let photon = res[i].1;
+            result += photon.power * hit_normal.inner_product(photon.direction).max(0.0);
+            if res[i].0 > max_distance_squared {
+                max_distance_squared = res[i].0;
+            }
+        }
+
+        return result * (1.0 / (max_distance_squared * PI));
+        // heap.reset();
+        // return photon_map.irradiance_estimate(heap, hit_point, hit_normal);
     }
 
     pub fn trace_ray(
         &self,
-        heap: &mut Heap,
-        photon_map_global: &PhotonMap,
-        photon_map_caustic: &PhotonMap,
+        photon_map_global: &KdTree<f32, Photon, [f32; 3]>,
+        photon_map_caustic: &KdTree<f32, Photon, [f32; 3]>,
         ray: &Ray,
         depth: u8,
     ) -> Color {
@@ -105,22 +128,19 @@ impl Scene {
                     let (direct_color, specular_color) =
                         self.direct_illumination(&ray, &int, &int.material);
                     let global_color = self.global_illumination(
-                        heap,
                         photon_map_global,
-                        &int.hit_point,
-                        &int.hit_normal,
+                        int.hit_point,
+                        int.hit_normal,
                     );
                     let caustic_color = self.global_illumination(
-                        heap,
                         photon_map_caustic,
-                        &int.hit_point,
-                        &int.hit_normal,
+                        int.hit_point,
+                        int.hit_normal,
                     );
                     let reflected_color = if reflect_color.max() > 0.0 {
                         let reflect_ray = ray.reflect(int.hit_point, int.hit_normal);
                         reflect_color
                             * self.trace_ray(
-                                heap,
                                 photon_map_global,
                                 photon_map_caustic,
                                 &reflect_ray,
@@ -139,23 +159,22 @@ impl Scene {
                     let nt: f32;
                     let c: f32;
                     let mut t = Vector3::new(0.0, 0.0, 0.0);
-                    if ray.direction.inner_product(&int.hit_normal) < 0.0 {
+                    if ray.direction.inner_product(int.hit_normal) < 0.0 {
                         let n = 1.0;
                         nt = refractive_index;
-                        if let Some(v) = refract(&ray.direction, &int.hit_normal, n, nt) {
+                        if let Some(v) = refract(ray.direction, int.hit_normal, n, nt) {
                             t = v;
                         }
-                        c = -1.0 * ray.direction.inner_product(&int.hit_normal);
+                        c = -1.0 * ray.direction.inner_product(int.hit_normal);
                     } else {
                         let n = refractive_index;
                         nt = 1.0;
-                        if let Some(v) = refract(&ray.direction, &(int.hit_normal * -1.0), n, nt) {
-                            c = v.normalized().inner_product(&int.hit_normal);
+                        if let Some(v) = refract(ray.direction, int.hit_normal * -1.0, n, nt) {
+                            c = v.normalized().inner_product(int.hit_normal);
                             t = v;
                         } else {
                             return Color::white()
                                 * self.trace_ray(
-                                    heap,
                                     photon_map_global,
                                     photon_map_caustic,
                                     &reflect_ray,
@@ -173,14 +192,12 @@ impl Scene {
 
                     return Color::white()
                         * (r * self.trace_ray(
-                            heap,
                             photon_map_global,
                             photon_map_caustic,
                             &reflect_ray,
                             depth + 1,
                         ) + (1.0 - r)
                             * self.trace_ray(
-                                heap,
                                 photon_map_global,
                                 photon_map_caustic,
                                 &refract_ray,
@@ -208,8 +225,8 @@ impl Scene {
 
     pub fn trace_photon(
         &self,
-        photon_map_global: &mut PhotonMap,
-        photon_map_caustic: &mut PhotonMap,
+        photon_map_global: &mut KdTree<f32, Photon, [f32; 3]>,
+        photon_map_caustic: &mut KdTree<f32, Photon, [f32; 3]>,
         ray: &Ray,
         color: Color,
         depth: u8,
@@ -265,17 +282,18 @@ impl Scene {
 
                     if depth != 0 {
                         if bounce_type == BounceType::DIFFUSE {
-                            photon_map_global.store(
-                                &int.hit_point,
-                                &(ray.direction * -1.0).normalized(),
-                                &color,
-                            );
+                            let photon = Photon {
+                                position: int.hit_point,
+                                direction: (ray.direction * -1.0).normalized(),
+                                power: color,
+                            };
                         } else if bounce_type == BounceType::SPECULAR {
-                            photon_map_caustic.store(
-                                &int.hit_point,
-                                &(ray.direction * -1.0).normalized(),
-                                &color,
-                            );
+                            let photon = Photon {
+                                position: int.hit_point,
+                                direction: (ray.direction * -1.0).normalized(),
+                                power: color,
+                            };
+                            photon_map_caustic.add(int.hit_point.to_array(), photon).unwrap();
                         }
                     }
 
@@ -298,18 +316,18 @@ impl Scene {
                     let nt: f32;
                     let c: f32;
                     let mut t = Vector3::new(0.0, 0.0, 0.0);
-                    if ray.direction.inner_product(&int.hit_normal) < 0.0 {
+                    if ray.direction.inner_product(int.hit_normal) < 0.0 {
                         n = 1.0;
                         nt = refractive_index;
-                        if let Some(v) = refract(&ray.direction, &int.hit_normal, n, nt) {
+                        if let Some(v) = refract(ray.direction, int.hit_normal, n, nt) {
                             t = v;
                         }
-                        c = -1.0 * ray.direction.inner_product(&int.hit_normal);
+                        c = -1.0 * ray.direction.inner_product(int.hit_normal);
                     } else {
                         n = refractive_index;
                         nt = 1.0;
-                        if let Some(v) = refract(&ray.direction, &(int.hit_normal * -1.0), n, nt) {
-                            c = v.normalized().inner_product(&int.hit_normal);
+                        if let Some(v) = refract(ray.direction, int.hit_normal * -1.0, n, nt) {
+                            c = v.normalized().inner_product(int.hit_normal);
                             t = v;
                         } else {
                             return self.trace_photon(
@@ -356,7 +374,7 @@ impl Scene {
     }
 }
 
-fn refract(direction: &Vector3, normal: &Vector3, n: f32, nt: f32) -> Option<Vector3> {
+fn refract(direction: Vector3, normal: Vector3, n: f32, nt: f32) -> Option<Vector3> {
     let dn = direction.inner_product(normal);
     let sq_rt = 1.0 - (n * n * (1.0 - (dn * dn))) / (nt * nt);
 

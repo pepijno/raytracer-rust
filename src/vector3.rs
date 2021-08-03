@@ -16,11 +16,11 @@ impl Vector3 {
         Self { x, y, z }
     }
 
-    pub fn inner_product(&self, other: &Self) -> f32 {
+    pub fn inner_product(&self, other: Self) -> f32 {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
-    pub fn outer_product(&self, other: &Self) -> Self {
+    pub fn outer_product(&self, other: Self) -> Self {
         Self {
             x: self.y * other.z - self.z * other.y,
             y: self.z * other.x - self.x * other.z,
@@ -29,24 +29,24 @@ impl Vector3 {
     }
 
     pub fn length_squared(&self) -> f32 {
-        self.inner_product(self)
+        self.inner_product(*self)
     }
 
     pub fn normalized(&self) -> Self {
         self * (1.0 / self.length_squared().sqrt())
     }
 
-    pub fn reflect(&self, normal: &Self) -> Self {
+    pub fn reflect(&self, normal: Self) -> Self {
         self - normal * 2.0 * (self.inner_product(normal))
     }
 
-    pub fn refract(&self, normal: &Self, ior: f32) -> Self {
+    pub fn refract(&self, normal: Self, ior: f32) -> Self {
         let mut eta_t = ior;
         let mut eta_i = 1.0;
         let mut cosi = -self.inner_product(normal).min(1.0).max(-1.0);
         let n = if cosi < 0.0 {
             cosi *= -1.0;
-            *normal
+            normal
         } else {
             let tmp = eta_t;
             eta_t = eta_i;
@@ -80,7 +80,7 @@ impl Vector3 {
                 z: self.y,
             } / (self.y * self.y + self.z * self.z).sqrt()
         };
-        let nb = self.outer_product(&nt);
+        let nb = self.outer_product(nt);
         (*self, nt, nb)
     }
 

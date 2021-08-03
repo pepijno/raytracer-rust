@@ -1,11 +1,11 @@
 extern crate rand;
 extern crate rand_distr;
+extern crate kdtree;
 
 use rand_distr::{Distribution, Uniform};
 use rayon::prelude::*;
 use rust_raytracer::camera::Camera;
 use rust_raytracer::material::{Color, Material};
-use rust_raytracer::photonmap::{Heap, PhotonMap};
 use rust_raytracer::ppm::PPM;
 use rust_raytracer::scene::{BounceType, Scene};
 use rust_raytracer::objects::{Object, Shape, Light};
@@ -13,11 +13,13 @@ use rust_raytracer::vector3::Vector3;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering::Relaxed;
 
+use kdtree::KdTree;
+
 const THREAD_COUNT: usize = 8;
-const SAMPLING_AMOUNT: usize = 1;
+const SAMPLING_AMOUNT: usize = 100;
 const NUMBER_OF_PHOTONS: usize = 800000;
 
-const SIZE: usize = 150;
+const SIZE: usize = 1200;
 const ASPECT_RATIO: f32 = 1.66;
 const HEIGHT: usize = 2 * SIZE;
 const WIDTH: usize = (2.0 * ASPECT_RATIO * (SIZE as f32)) as usize;
@@ -57,7 +59,7 @@ fn create_scene() -> Scene {
         refractive_index: 0.0,
         diffuse_color: Color::new(0.3, 0.1, 0.1),
         reflect_color: Color::black(),
-        specular_exponent: 1000000.0,
+        specular_exponent: 10000000000.0,
     };
 
     let objects: Vec<Object> = vec![
@@ -114,9 +116,9 @@ fn create_scene() -> Scene {
 }
 
 fn create_camera() -> Camera {
-    let origin = &Vector3::new(7.0, 2.0, 5.0);
-    let look_at = &Vector3::new(3.0, 0.0, 0.0);
-    let vup = &Vector3::new(0.0, -1.0, 0.0);
+    let origin = Vector3::new(7.0, 2.0, 5.0);
+    let look_at = Vector3::new(3.0, 0.0, 0.0);
+    let vup = Vector3::new(0.0, -1.0, 0.0);
     let focus_distance = (origin - look_at).length_squared().sqrt();
     let field_of_view = 90.0;
     let aperture = 0.8;
@@ -141,9 +143,8 @@ fn main() {
     let scene = create_scene();
 
     println!("Calculating Photon map...");
-
-    let mut photon_map_global = PhotonMap::new();
-    let mut photon_map_caustic = PhotonMap::new();
+    let mut photon_map_global = KdTree::new(3);
+    let mut photon_map_caustic = KdTree::new(3);
 
     for _ in 0..NUMBER_OF_PHOTONS {
         let (ray, color) = scene.random_photon_ray(NUMBER_OF_PHOTONS);
@@ -157,14 +158,6 @@ fn main() {
         );
     }
 
-    println!("Balancing...");
-    photon_map_global.init_balance();
-    photon_map_caustic.init_balance();
-    println!(
-        "Photon map calculated! Size: global: {}, caustic: {}",
-        photon_map_global.stored_photons, photon_map_caustic.stored_photons
-    );
-
     let mut ppm = PPM::new(&String::from("image.ppm"), WIDTH, HEIGHT);
 
     let counter = AtomicU32::new(0);
@@ -172,7 +165,6 @@ fn main() {
     let result = ys
         .par_iter()
         .map(|y| {
-            let mut heap = Heap::new();
             let between = Uniform::new(-0.5, 0.5);
             let mut rng = rand::thread_rng();
             let xs = (0..WIDTH).collect::<Vec<usize>>();
@@ -195,9 +187,8 @@ fn main() {
                             };
                             let a = (x as f32 + ra) / (WIDTH as f32);
                             let b = (*y as f32 + rb) / (HEIGHT as f32);
-                            let ray = camera.create_ray(false, a, b);
+                            let ray = camera.create_ray(true, a, b);
                             scene.trace_ray(
-                                &mut heap,
                                 &photon_map_global,
                                 &photon_map_caustic,
                                 &ray,

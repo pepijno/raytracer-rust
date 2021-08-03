@@ -15,9 +15,9 @@ pub struct Camera {
 
 impl Camera {
     pub fn new(
-        look_from: &Vector3,
-        look_at: &Vector3,
-        vup: &Vector3,
+        look_from: Vector3,
+        look_at: Vector3,
+        vup: Vector3,
         vofv: f32,
         aspect: f32,
         aperture: f32,
@@ -27,10 +27,10 @@ impl Camera {
         let half_height = (theta / 2.0).tan();
         let half_width = aspect * half_height;
         let w = (look_from - look_at).normalized();
-        let u = vup.outer_product(&w).normalized();
-        let v = w.outer_product(&u);
+        let u = vup.outer_product(w).normalized();
+        let v = w.outer_product(u);
         Camera {
-            origin: *look_from,
+            origin: look_from,
             screen_dl: look_from
                 - u * half_width * focus_distance
                 - v * half_height * focus_distance

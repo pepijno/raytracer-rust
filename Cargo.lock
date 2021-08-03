@@ -83,6 +83,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "kdtree"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b63d659081717fe428fbaf9549559083956450194e57e8d28498a0dfa31b3b04"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -220,6 +229,7 @@ dependencies = [
 name = "rust-raytracer"
 version = "0.1.0"
 dependencies = [
+ "kdtree",
  "overload",
  "rand",
  "rand_distr",

@@ -43,7 +43,7 @@ impl Ray {
     }
 
     pub fn reflect(&self, point: Vector3, normal: Vector3) -> Self {
-        let direction = self.direction.reflect(&normal).normalized();
+        let direction = self.direction.reflect(normal).normalized();
         Self::new(point, direction)
     }
 
@@ -68,14 +68,14 @@ impl Ray {
     fn intersect_plane(&self, plane: &Plane, material: &Material) -> Option<Intersection> {
         let Plane { position, normal } = *plane;
 
-        let denominator = normal.inner_product(&self.direction);
+        let denominator = normal.inner_product(self.direction);
         // denominator is small, ray is parallel to plane
         if denominator.abs() < 1e-4 {
             return None;
         }
 
         let plane = position - self.origin;
-        let t = plane.inner_product(&normal) / denominator;
+        let t = plane.inner_product(normal) / denominator;
 
         // t is less than 0, intersection is behind the ray origin
         if t < 0.0 {
@@ -101,7 +101,7 @@ impl Ray {
 
         let v = origin - self.origin;
 
-        let tca = v.inner_product(&self.direction);
+        let tca = v.inner_product(self.direction);
         if tca < 0.0 {
             return None;
         }
@@ -136,8 +136,8 @@ impl Ray {
 
         let n1 = vertex2 - vertex1;
         let n2 = vertex3 - vertex1;
-        let p_vec = self.direction.outer_product(&n2);
-        let determinant = n1.inner_product(&p_vec);
+        let p_vec = self.direction.outer_product(n2);
+        let determinant = n1.inner_product(p_vec);
 
         if determinant.abs() < 0.0 {
             return None;
@@ -146,18 +146,18 @@ impl Ray {
         let inverse_determinant = 1.0 / determinant;
 
         let t_vec = self.origin - vertex1;
-        let u = t_vec.inner_product(&p_vec) * inverse_determinant;
+        let u = t_vec.inner_product(p_vec) * inverse_determinant;
         if u < 0.0 || u > 1.0 {
             return None;
         }
 
-        let q_vec = t_vec.outer_product(&n1);
-        let v = self.direction.inner_product(&q_vec) * inverse_determinant;
+        let q_vec = t_vec.outer_product(n1);
+        let v = self.direction.inner_product(q_vec) * inverse_determinant;
         if v < 0.0 || u + v > 1.0 {
             return None;
         }
 
-        let t = n2.inner_product(&q_vec) * inverse_determinant;
+        let t = n2.inner_product(q_vec) * inverse_determinant;
         if t < 0.0 {
             return None;
         }
@@ -166,7 +166,7 @@ impl Ray {
         Some(Intersection {
             t,
             hit_point,
-            hit_normal: n1.outer_product(&n2).normalized(),
+            hit_normal: n1.outer_product(n2).normalized(),
             material: *material,
         })
     }
@@ -229,8 +229,8 @@ impl Ray {
                 material: _,
             } = intersection;
             let inner_dir = p - hit_point;
-            let normal = if self.direction.inner_product(&inner_dir) < 0.0
-                && hit_normal.inner_product(&inner_dir) > 0.0
+            let normal = if self.direction.inner_product(inner_dir) < 0.0
+                && hit_normal.inner_product(inner_dir) > 0.0
             {
                 hit_normal * -1.0
             } else {
